@@ -20,7 +20,8 @@ function createWindow() {
     }
   });
 
-  win.loadFile(path.join(__dirname, '..', 'index.html'));
+  // Windows uses a dedicated optimized runtime. Web/Android keep the normal index.html.
+  win.loadFile(path.join(__dirname, 'index-windows.html'));
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
