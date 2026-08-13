@@ -87,7 +87,7 @@ jobs:
             echo "Android release signing: enabled"
           else
             echo "SIGNING_READY=false" >> "$GITHUB_ENV"
-            echo "Android release signing: disabled because one or more GitHub Secrets are missing"
+            echo "Android release signing: disabled; AAB will still be built unsigned"
           fi
 
       - name: Install Capacitor Android
@@ -162,7 +162,7 @@ jobs:
           if [ "$SIGNING_READY" = "true" ]; then
             ./gradlew assembleRelease bundleRelease --no-daemon
           else
-            ./gradlew assembleDebug --no-daemon
+            ./gradlew assembleDebug bundleRelease --no-daemon
           fi
 
       - name: Collect Android packages
@@ -174,6 +174,7 @@ jobs:
             cp android/app/build/outputs/bundle/release/app-release.aab "dist/android/ORBIT-BREAK-v${VERSION_NAME}.aab"
           else
             cp android/app/build/outputs/apk/debug/app-debug.apk "dist/android/ORBIT-BREAK-v${VERSION_NAME}-debug.apk"
+            cp android/app/build/outputs/bundle/release/app-release.aab "dist/android/ORBIT-BREAK-v${VERSION_NAME}-unsigned.aab"
           fi
 
       - name: Upload APK
@@ -184,8 +185,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload signed AAB
-        if: env.SIGNING_READY == 'true'
+      - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
           name: ORBIT-BREAK-AAB-v${{ env.VERSION_NAME }}
@@ -196,7 +196,7 @@ jobs:
       - name: Signing setup reminder
         if: env.SIGNING_READY != 'true'
         run: |
-          echo "Signed AAB skipped. Add these repository Actions secrets:"
+          echo "AAB was built unsigned. Add these repository Actions secrets for a signed release AAB:"
           echo "ANDROID_KEYSTORE_BASE64"
           echo "ANDROID_KEYSTORE_PASSWORD"
           echo "ANDROID_KEY_ALIAS"
