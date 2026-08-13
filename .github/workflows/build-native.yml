@@ -8,6 +8,7 @@ on:
       - 'game-base.html'
       - 'package.json'
       - 'desktop/**'
+      - 'tools/**'
       - 'capacitor.config.json'
       - '.github/workflows/build-native.yml'
   workflow_dispatch:
@@ -27,6 +28,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Apply louder multi-track music
+        run: python tools/apply_native_music_pack.py desktop/index-windows.html
 
       - name: Install Electron builder
         run: npm install --no-save electron@latest electron-builder@latest
@@ -93,6 +97,7 @@ jobs:
         run: |
           mkdir -p web
           cp index.html game-base.html web/
+          python3 tools/apply_native_music_pack.py web/index.html
 
       - name: Generate Android project
         run: |
