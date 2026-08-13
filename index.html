@@ -96,13 +96,16 @@ function rhythmPulse(){
   if(!audioCtx||!rhythmStarted)return 0;
   let p=(audioCtx.currentTime-rhythmPhase)%RHYTHM_BEAT;if(p<0)p+=RHYTHM_BEAT;return Math.exp(-(p/RHYTHM_BEAT)*8);
 }
+
+/* CLEAN GAMEPLAY UI: keep rhythm, remove text clutter */
 function rhythmUi(){
-  const style=document.createElement('style');style.textContent='.rhythm-beatbar{position:fixed;z-index:20;left:50%;top:max(18px,env(safe-area-inset-top));transform:translateX(-50%);display:flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid #55ecff28;border-radius:999px;background:#071124b8;backdrop-filter:blur(9px);font:900 10px system-ui;letter-spacing:1px;color:#bff9ff;pointer-events:none;box-shadow:0 0 26px #42e9ff18}.rhythm-dot{width:8px;height:8px;border-radius:50%;background:#70fff0;box-shadow:0 0 14px #70fff0}';document.head.appendChild(style);
-  rhythmBeatBar=document.createElement('div');rhythmBeatBar.className='rhythm-beatbar';rhythmBeatBar.innerHTML='<span class="rhythm-dot"></span><span>♪ 124 BPM</span>';document.body.appendChild(rhythmBeatBar);rhythmBeatDot=rhythmBeatBar.querySelector('.rhythm-dot');
+  const themeBadge=document.getElementById('themeBadge');if(themeBadge)themeBadge.remove();
+  const bottom=document.querySelector('.bottom');if(bottom)bottom.remove();
   const tag=document.querySelector('#start .tag');if(tag)tag.innerHTML='Nghe beat và <b>chạm khi lõi lọt vào vòng sáng đúng nhịp</b>. Nhịp càng chuẩn, combo càng cao.';
-  const bottom=document.querySelector('.bottom');if(bottom)bottom.textContent='♪ 124 BPM · CHẠM THEO NHỊP · PERFECT = ±55MS';
 }
 rhythmUi();
+/* Disable all moving neon text-box billboards while keeping the cyberpunk background itself. */
+if(typeof billboards==='function')billboards=function(){};
 
 chooseGoal=function(){
   const min=hits<4?2.0:(hits<12?1.35:.95),max=hits<4?3.8:(hits<12?4.45:5.15);
@@ -136,7 +139,6 @@ update=function(dt){
     const b=ballPos();trail.push({x:b.x,y:b.y,life:1});if(trail.length>34)trail.shift();const look=.30,desiredX=anchor.x+(target.x-anchor.x)*look,desiredY=anchor.y+(target.y-anchor.y)*look,follow=1-Math.exp(-dt*10);camera.x+=(desiredX-camera.x)*follow;camera.y+=(desiredY-camera.y)*follow;
   }
   for(const p of trail)p.life-=dt*2.15;trail=trail.filter(p=>p.life>0);for(const h of history)h.life=Math.max(.16,h.life-dt*.05);for(const p of sparks){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.pow(.955,dt*60);p.vy*=Math.pow(.955,dt*60);p.life-=dt}sparks=sparks.filter(p=>p.life>0);shake=Math.max(0,shake-dt*36);flash=Math.max(0,flash-dt*2.8);
-  const bp=rhythmPulse();if(rhythmBeatDot){rhythmBeatDot.style.transform='scale('+(.78+bp*.75)+')';rhythmBeatDot.style.opacity=String(.45+bp*.55);rhythmBeatDot.style.boxShadow='0 0 '+(12+bp*22)+'px #70fff0'}
 };
 const rhythmBaseDraw=draw;
 draw=function(){rhythmBaseDraw();const bp=rhythmPulse();if(bp>.03){const g=ctx.createRadialGradient(W*.5,H*.5,Math.min(W,H)*.25,W*.5,H*.5,Math.max(W,H)*.72);g.addColorStop(0,'rgba(70,255,235,0)');g.addColorStop(1,'rgba(70,235,255,'+(bp*.045)+')');ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}};
