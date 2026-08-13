@@ -1,0 +1,117 @@
+name: Build Windows and Android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'package.json'
+      - 'desktop/**'
+      - 'capacitor.config.json'
+      - '.github/workflows/build-native.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows EXE
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Electron builder
+        run: npm install --no-save electron@latest electron-builder@latest
+
+      - name: Build portable EXE
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run build:windows
+
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: ORBIT-BREAK-Windows
+          path: dist/windows/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+  android:
+    name: Android APK and AAB
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Capacitor Android
+        run: npm install --no-save @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
+
+      - name: Prepare web assets
+        run: |
+          mkdir -p web
+          cp index.html web/index.html
+
+      - name: Generate Android project
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: Force portrait orientation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          marker = '<activity'
+          i = s.find(marker)
+          if i >= 0 and 'android:screenOrientation=' not in s[i:s.find('>', i)]:
+              j = s.find('>', i)
+              s = s[:j] + '\n            android:screenOrientation="portrait"' + s[j:]
+              p.write_text(s)
+          PY
+
+      - name: Build APK and AAB
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug bundleRelease --no-daemon
+
+      - name: Collect Android packages
+        run: |
+          mkdir -p dist/android
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist/android/ORBIT-BREAK.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab dist/android/ORBIT-BREAK.aab
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ORBIT-BREAK-APK
+          path: dist/android/ORBIT-BREAK.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: ORBIT-BREAK-AAB
+          path: dist/android/ORBIT-BREAK.aab
+          if-no-files-found: error
+          retention-days: 30
