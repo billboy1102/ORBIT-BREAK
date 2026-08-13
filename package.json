@@ -1,0 +1,32 @@
+{
+  "name": "orbit-break",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ORBIT BREAK neon timing game",
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "desktop": "electron .",
+    "build:windows": "electron-builder --win portable --x64"
+  },
+  "build": {
+    "appId": "com.orbitbreak.game",
+    "productName": "ORBIT BREAK",
+    "directories": {
+      "output": "dist/windows"
+    },
+    "files": [
+      "index.html",
+      "desktop/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "ORBIT-BREAK-Windows-${version}.${ext}"
+    }
+  }
+}
