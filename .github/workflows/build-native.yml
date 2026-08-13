@@ -46,6 +46,12 @@ jobs:
   android:
     name: Android APK and AAB
     runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,6 +66,24 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+
+      - name: Set automatic version
+        shell: bash
+        run: |
+          echo "VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=1.0.${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "Android versionCode=${{ github.run_number }} versionName=1.0.${{ github.run_number }}"
+
+      - name: Check Android signing secrets
+        shell: bash
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo "SIGNING_READY=true" >> "$GITHUB_ENV"
+            echo "Android release signing: enabled"
+          else
+            echo "SIGNING_READY=false" >> "$GITHUB_ENV"
+            echo "Android release signing: disabled because one or more GitHub Secrets are missing"
+          fi
 
       - name: Install Capacitor Android
         run: npm install --no-save @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
@@ -88,30 +112,86 @@ jobs:
               p.write_text(s)
           PY
 
-      - name: Build APK and AAB
+      - name: Configure Android version and signing
+        shell: bash
+        run: |
+          cat >> android/app/build.gradle <<'GRADLE'
+
+          android {
+              defaultConfig {
+                  versionCode Integer.parseInt(System.getenv("VERSION_CODE"))
+                  versionName System.getenv("VERSION_NAME")
+              }
+          }
+          GRADLE
+
+          if [ "$SIGNING_READY" = "true" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
+            echo "ANDROID_KEYSTORE_FILE=$GITHUB_WORKSPACE/android/upload-keystore.jks" >> "$GITHUB_ENV"
+            cat >> android/app/build.gradle <<'GRADLE'
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file(System.getenv("ANDROID_KEYSTORE_FILE"))
+                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          GRADLE
+          fi
+
+      - name: Build Android packages
         working-directory: android
+        shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug bundleRelease --no-daemon
+          if [ "$SIGNING_READY" = "true" ]; then
+            ./gradlew assembleRelease bundleRelease --no-daemon
+          else
+            ./gradlew assembleDebug --no-daemon
+          fi
 
       - name: Collect Android packages
+        shell: bash
         run: |
           mkdir -p dist/android
-          cp android/app/build/outputs/apk/debug/app-debug.apk dist/android/ORBIT-BREAK.apk
-          cp android/app/build/outputs/bundle/release/app-release.aab dist/android/ORBIT-BREAK.aab
+          if [ "$SIGNING_READY" = "true" ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "dist/android/ORBIT-BREAK-v${VERSION_NAME}.apk"
+            cp android/app/build/outputs/bundle/release/app-release.aab "dist/android/ORBIT-BREAK-v${VERSION_NAME}.aab"
+          else
+            cp android/app/build/outputs/apk/debug/app-debug.apk "dist/android/ORBIT-BREAK-v${VERSION_NAME}-debug.apk"
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ORBIT-BREAK-APK
-          path: dist/android/ORBIT-BREAK.apk
+          name: ORBIT-BREAK-APK-v${{ env.VERSION_NAME }}
+          path: dist/android/*.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload AAB
+      - name: Upload signed AAB
+        if: env.SIGNING_READY == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ORBIT-BREAK-AAB
-          path: dist/android/ORBIT-BREAK.aab
+          name: ORBIT-BREAK-AAB-v${{ env.VERSION_NAME }}
+          path: dist/android/*.aab
           if-no-files-found: error
           retention-days: 30
+
+      - name: Signing setup reminder
+        if: env.SIGNING_READY != 'true'
+        run: |
+          echo "Signed AAB skipped. Add these repository Actions secrets:"
+          echo "ANDROID_KEYSTORE_BASE64"
+          echo "ANDROID_KEYSTORE_PASSWORD"
+          echo "ANDROID_KEY_ALIAS"
+          echo "ANDROID_KEY_PASSWORD"
