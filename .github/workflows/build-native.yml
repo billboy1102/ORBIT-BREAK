@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'game-base.html'
       - 'package.json'
       - 'desktop/**'
       - 'capacitor.config.json'
@@ -91,7 +92,7 @@ jobs:
       - name: Prepare web assets
         run: |
           mkdir -p web
-          cp index.html web/index.html
+          cp index.html game-base.html web/
 
       - name: Generate Android project
         run: |
