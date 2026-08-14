@@ -1,0 +1,35 @@
+name: Temporary fix leaderboard escaping
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/temp-fix-leaderboard-escaping.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix generated JavaScript escaping
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tools/fix_simple_ui.py')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('\\\\n  var ORBIT_LB_URL=', '\n  var ORBIT_LB_URL=')
+          s=s.replace('\\n  var ORBIT_LB_URL=', '\n  var ORBIT_LB_URL=')
+          s=s.replace(r'[\\u0000-\\u001f\\u007f]', r'[\u0000-\u001f\u007f]')
+          s=s.replace(r'/\\s+/g', r'/\s+/g')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        shell: bash
+        run: |
+          if git diff --quiet -- tools/fix_simple_ui.py; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/fix_simple_ui.py
+          git commit -m 'Fix leaderboard JavaScript escaping'
+          git push
