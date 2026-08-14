@@ -1,0 +1,75 @@
+name: Temporary gameplay orb skins
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/temp-game-orb-skins.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Patch gameplay orb skins
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('game-base.html')
+          s=p.read_text(encoding='utf-8')
+          themes="const THEMES=[{name:'NEON CITY',bg:'#10142a',bg2:'#040812',a:'#62f6ff',b:'#ff45cf',c:'#809cff'},{name:'COSMIC GRID',bg:'#1d1132',bg2:'#04050c',a:'#86ffab',b:'#52d6ff',c:'#bf7cff'},{name:'AURORA CORE',bg:'#0c2630',bg2:'#020609',a:'#69ffe1',b:'#7b86ff',c:'#a0ff70'},{name:'DATA STORM',bg:'#211018',bg2:'#050609',a:'#ff6f86',b:'#ffd05d',c:'#55eaff'}];"
+          skins="const ORB_SKINS=[{name:'NEON PULSE',a:'#62f6ff',b:'#ff45cf',ea:'#e8ffff',eb:'#ffe1f6',glow:18},{name:'SOLAR FLARE',a:'#ffd84d',b:'#ff6b2c',ea:'#fff7ca',eb:'#ffe0c9',glow:20},{name:'TOXIC NOVA',a:'#9dff4a',b:'#a855f7',ea:'#efffd7',eb:'#f1ddff',glow:19},{name:'ICE FIRE',a:'#72e7ff',b:'#ff4d6d',ea:'#e5fbff',eb:'#ffe0e6',glow:20},{name:'ROYAL VOID',a:'#b277ff',b:'#ffd166',ea:'#f2e7ff',eb:'#fff3c7',glow:21},{name:'SAKURA',a:'#fff0f7',b:'#ff77b7',ea:'#ffffff',eb:'#ffe1ef',glow:17},{name:'MATRIX',a:'#39ff88',b:'#0ac7a2',ea:'#e0ffec',eb:'#d8fff6',glow:20},{name:'PLASMA',a:'#5d7cff',b:'#ff405d',ea:'#e4e9ff',eb:'#ffe2e7',glow:22},{name:'OCEAN TIDE',a:'#46f0dc',b:'#3388ff',ea:'#dcfffa',eb:'#dceaff',glow:20},{name:'CANDY POP',a:'#ffe45e',b:'#ff62d0',ea:'#fff9d6',eb:'#ffe2f7',glow:18},{name:'GHOST',a:'#f5ffff',b:'#b9a7ff',ea:'#ffffff',eb:'#eeeaff',glow:24},{name:'INFERNO',a:'#ff9b2f',b:'#20e3ff',ea:'#ffead3',eb:'#dcfbff',glow:23}];"
+          if 'const ORB_SKINS=' not in s:
+              if themes not in s: raise SystemExit('THEMES marker not found')
+              s=s.replace(themes,themes+'\n'+skins,1)
+          old="themeNow=0,themePrev=0,themeAt=0;"
+          new="themeNow=0,themePrev=0,themeAt=0,skinIndex=clamp(parseInt(localStorage.getItem('orbitBreakSkin')||'0',10)||0,0,ORB_SKINS.length-1);"
+          if new not in s:
+              if old not in s: raise SystemExit('state marker not found')
+              s=s.replace(old,new,1)
+          old="function circle(x,y,r,f,s,w=1){ctx.beginPath();ctx.arc(x,y,r,0,TAU);if(f){ctx.fillStyle=f;ctx.fill()}if(s){ctx.strokeStyle=s;ctx.lineWidth=w;ctx.stroke()}}function arc(x,y,r,a0,a1,s,w){ctx.beginPath();ctx.arc(x,y,r,a0,a1);ctx.strokeStyle=s;ctx.lineWidth=w;ctx.lineCap='round';ctx.stroke()}"
+          if 'function skinOrb(' not in s:
+              if old not in s: raise SystemExit('circle marker not found')
+              s=s.replace(old,old+"function skinOrb(x,y,r,fill,edge,glow){ctx.save();ctx.shadowColor=fill;ctx.shadowBlur=glow||18;circle(x,y,r,fill,edge,2);ctx.restore()}",1)
+          old="function drawWorld(){let t=THEMES[themeNow],a=anchor,b=ballPos();"
+          new="function drawWorld(){let t=THEMES[themeNow],skin=ORB_SKINS[skinIndex]||ORB_SKINS[0],a=anchor,b=ballPos();"
+          if new not in s:
+              if old not in s: raise SystemExit('drawWorld marker not found')
+              s=s.replace(old,new,1)
+          old="for(let q of trail)circle(q.x,q.y,5*q.life,rgba(t.a,q.life*.55));let g=ctx.createLinearGradient(a.x,a.y,b.x,b.y);g.addColorStop(0,rgba(t.b,.85));g.addColorStop(1,rgba(t.a,.85));ctx.strokeStyle=rgba(t.a,.16);ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.strokeStyle=g;ctx.lineWidth=3.3;ctx.stroke();circle(a.x,a.y,15,t.b,'#ffe1ef',2);circle(b.x,b.y,15,t.a,'#e0ffff',2);if(flash>.03){let r=18+(1-clamp(flash,0,1))*110;circle(a.x,a.y,r,null,rgba(t.b,.24*flash),1.5+flash*3);circle(b.x,b.y,r*.72,null,rgba(t.a,.2*flash),1+flash*2)}"
+          new="for(let q of trail)circle(q.x,q.y,5*q.life,rgba(skin.a,q.life*.58));let g=ctx.createLinearGradient(a.x,a.y,b.x,b.y);g.addColorStop(0,rgba(skin.b,.92));g.addColorStop(1,rgba(skin.a,.92));ctx.strokeStyle=rgba(skin.a,.18);ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.strokeStyle=g;ctx.lineWidth=3.3;ctx.stroke();skinOrb(a.x,a.y,15,skin.b,skin.eb,skin.glow);skinOrb(b.x,b.y,15,skin.a,skin.ea,skin.glow);if(flash>.03){let r=18+(1-clamp(flash,0,1))*110;circle(a.x,a.y,r,null,rgba(skin.b,.27*flash),1.5+flash*3);circle(b.x,b.y,r*.72,null,rgba(skin.a,.23*flash),1+flash*2)}"
+          if new not in s:
+              if old not in s: raise SystemExit('orb render block not found')
+              s=s.replace(old,new,1)
+          old="function loop(t){now=t;let dt=Math.min(.033,(t-last)/1000||0);last=t;update(dt);draw();requestAnimationFrame(loop)}addEventListener('resize',resize,{passive:true});"
+          new="function loop(t){now=t;let dt=Math.min(.033,(t-last)/1000||0);last=t;update(dt);draw();requestAnimationFrame(loop)}addEventListener('orbit-skin-change',e=>{let i=Number(e&&e.detail);if(Number.isFinite(i))skinIndex=clamp(Math.floor(i),0,ORB_SKINS.length-1)});addEventListener('resize',resize,{passive:true});"
+          if new not in s:
+              if old not in s: raise SystemExit('loop marker not found')
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Validate gameplay JS
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('game-base.html').read_text(encoding='utf-8')
+          assert 'const ORB_SKINS=' in h
+          assert "addEventListener('orbit-skin-change'" in h
+          a=h.find('<script>')+len('<script>')
+          b=h.rfind('</script>')
+          Path('/tmp/game.js').write_text(h[a:b],encoding='utf-8')
+          PY
+          node --check /tmp/game.js
+      - name: Commit gameplay skins
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add game-base.html
+          git commit -m 'Add selectable gameplay orb skins'
+          git push origin HEAD:main
