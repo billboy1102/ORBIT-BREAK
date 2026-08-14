@@ -47,6 +47,7 @@ jobs:
         run: |
           python3 -m py_compile tools/fix_simple_ui.py
           cp index.html /tmp/skins-scroll-test.html
+          python3 tools/apply_native_music_pack.py --ui-only /tmp/skins-scroll-test.html
           python3 tools/fix_simple_ui.py /tmp/skins-scroll-test.html
           python3 tools/fix_rankings_position.py /tmp/skins-scroll-test.html
           python3 - <<'PY'
@@ -56,6 +57,7 @@ jobs:
           assert "skinsGrid.scrollTop=orbitSkinDragTop-dy" in s
           assert 'html.orbit-skins-open,body.orbit-skins-open{touch-action:pan-y!important}' in s
           h=Path('/tmp/skins-scroll-test.html').read_text(encoding='utf-8')
+          assert "skinsGrid.scrollTop=orbitSkinDragTop-dy" in h
           a=h.find('<script>')+len('<script>');b=h.rfind('</script>')
           Path('/tmp/skins-scroll-test.js').write_text(h[a:b],encoding='utf-8')
           PY
