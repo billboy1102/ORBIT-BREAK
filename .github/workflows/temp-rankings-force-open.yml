@@ -1,0 +1,64 @@
+name: Temporary force-open Rankings fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/temp-rankings-force-open.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Force Rankings to open reliably
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tools/fix_simple_ui.py')
+          s=p.read_text(encoding='utf-8')
+          old="""var orbitRankOpenAt=0;function orbitOpenRankings(e){stop(e);var now=Date.now();if(now-orbitRankOpenAt<220)return;orbitRankOpenAt=now;var m=document.getElementById('orbitRankingsModal');if(m){m.classList.remove('hidden');m.style.display='flex'}orbitLoadRankings()}\n  function orbitCloseRankings(e){stop(e);var m=document.getElementById('orbitRankingsModal');if(m){m.classList.add('hidden');m.style.display=''}var h=document.getElementById('orbitHomeNav');document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});if(h)h.classList.add('active')}"""
+          new="""var orbitRankOpenAt=0;function orbitShowRankings(){var m=document.getElementById('orbitRankingsModal');if(!m)return;m.classList.remove('hidden');m.removeAttribute('hidden');m.style.setProperty('display','flex','important');m.style.setProperty('visibility','visible','important');m.style.setProperty('opacity','1','important');m.style.setProperty('pointer-events','auto','important');m.style.setProperty('z-index','500','important');document.body.classList.add('orbit-rankings-open');var nav=document.getElementById('orbitBottomNav');if(nav)nav.style.setProperty('z-index','600','important')}\n  function orbitOpenRankings(e){if(e){e.preventDefault();e.stopPropagation()}var now=Date.now();if(now-orbitRankOpenAt<220)return;orbitRankOpenAt=now;orbitShowRankings();orbitLoadRankings()}\n  function orbitCloseRankings(e){stop(e);var m=document.getElementById('orbitRankingsModal');if(m){m.style.removeProperty('display');m.style.removeProperty('visibility');m.style.removeProperty('opacity');m.style.removeProperty('pointer-events');m.style.removeProperty('z-index');m.classList.add('hidden')}document.body.classList.remove('orbit-rankings-open');var nav=document.getElementById('orbitBottomNav');if(nav)nav.style.removeProperty('z-index');var h=document.getElementById('orbitHomeNav');document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});if(h)h.classList.add('active')}"""
+          if old not in s:
+              raise SystemExit('open/close rankings snippet not found')
+          s=s.replace(old,new,1)
+          old2="""var rankBtn=document.getElementById('orbitRankingsNav');if(rankBtn){rankBtn.addEventListener('pointerup',orbitOpenRankings);rankBtn.addEventListener('click',orbitOpenRankings)};"""
+          new2="""var rankBtn=document.getElementById('orbitRankingsNav');if(rankBtn){var orbitRankDirectOpen=function(e){if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation()}document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});rankBtn.classList.add('active');orbitOpenRankings(null)};rankBtn.addEventListener('pointerdown',orbitRankDirectOpen,true);rankBtn.addEventListener('touchstart',orbitRankDirectOpen,{capture:true,passive:false});rankBtn.addEventListener('click',orbitRankDirectOpen,true)};"""
+          if old2 not in s:
+              raise SystemExit('rank button listener snippet not found')
+          s=s.replace(old2,new2,1)
+          old3="""['orbitSkinsNav','orbitHomeNav'].forEach(function(id){var b=document.getElementById(id);if(b)b.addEventListener('click',function(){var m=document.getElementById('orbitRankingsModal');if(m)m.classList.add('hidden')})});"""
+          new3="""['orbitSkinsNav','orbitHomeNav'].forEach(function(id){var b=document.getElementById(id);if(b)b.addEventListener('click',function(e){orbitCloseRankings(e)})});"""
+          if old3 not in s:
+              raise SystemExit('home/skins close snippet not found')
+          s=s.replace(old3,new3,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Validate generator and generated wrapper
+        shell: bash
+        run: |
+          python3 -m py_compile tools/fix_simple_ui.py
+          cp index.html /tmp/orbit-index.html
+          python3 tools/fix_simple_ui.py /tmp/orbit-index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          html=Path('/tmp/orbit-index.html').read_text()
+          assert 'orbitRankDirectOpen' in html
+          assert 'orbitShowRankings' in html
+          start=html.find('<script>')+len('<script>')
+          end=html.rfind('</script>')
+          Path('/tmp/orbit-wrapper.js').write_text(html[start:end])
+          PY
+          node --check /tmp/orbit-wrapper.js
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/fix_simple_ui.py
+          git commit -m 'Force Rankings overlay open on mobile'
+          git push origin HEAD:main
