@@ -28,12 +28,15 @@ jobs:
         run: |
           python3 tools/apply_native_music_pack.py --ui-only index.html
           python3 tools/fix_simple_ui.py index.html
+          python3 tools/fix_rankings_position.py index.html
 
       - name: Validate web wrapper syntax
         run: |
           python3 - <<'PY'
           from pathlib import Path
           html=Path('index.html').read_text()
+          assert '#orbitRankingsModal{inset:0 0 calc(84px + env(safe-area-inset-bottom)) 0!important;' in html
+          assert 'bottom:calc(84px + env(safe-area-inset-bottom))!important;inset:auto!important;' not in html
           start=html.find('<script>')+len('<script>')
           end=html.rfind('</script>')
           Path('/tmp/orbit-wrapper.js').write_text(html[start:end])
