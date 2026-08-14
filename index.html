@@ -163,8 +163,8 @@ reset=function(){
 };
 success=function(delta){
   const old={...anchor};history.push({x1:old.x,y1:old.y,x2:target.x,y2:target.y,life:1});if(history.length>90)history.shift();anchor={x:target.x,y:target.y};startAngle=Math.atan2(old.y-anchor.y,old.x-anchor.x);progress=0;hits++;
-  const error=delta/Math.max(.01,speed),perfect=error<=.055;if(perfect){combo++;score+=20*combo;toast('BEAT PERFECT','#8bffd5')}else{score+=10*combo;toast('ON BEAT','#ffe47a')}rhythmHit(perfect);
-  bestCombo=Math.max(bestCombo,combo);speed=Math.min(5.35,2.15+hits*.09);flash=perfect?.52:.32;burst(anchor.x,anchor.y,perfect?28:16);if(navigator.vibrate)navigator.vibrate(perfect?16:8);chooseGoal();buildTarget();updateHUD();
+  const error=delta/Math.max(.01,speed),perfect=error<=.055;score+=1;combo=1;if(perfect){toast('BEAT PERFECT','#8bffd5')}else{toast('ON BEAT','#ffe47a')}rhythmHit(perfect);
+  bestCombo=1;speed=Math.min(5.35,2.15+hits*.09);flash=perfect?.52:.32;burst(anchor.x,anchor.y,perfect?28:16);if(navigator.vibrate)navigator.vibrate(perfect?16:8);chooseGoal();buildTarget();updateHUD();
 };
 die=function(label){
   if(state!=='play')return;state='dying';message=label;shake=13;flash=1;rhythmFail();rhythmStop();if(navigator.vibrate)navigator.vibrate([25,35,55]);
