@@ -54,7 +54,7 @@ SAFE_UI = r'''/* SIMPLE STACK STYLE UI */
   function closeSettings(e){stop(e);modal.classList.add('hidden')}
   function openGuide(e){stop(e);modal.classList.add('hidden');guide.classList.remove('hidden')}
   function closeGuide(e){stop(e);guide.classList.add('hidden');modal.classList.remove('hidden')}
-  ['orbitSkinsNav','orbitHomeNav','orbitRankingsNav'].forEach(function(id){var b=document.getElementById(id);if(b){b.addEventListener('pointerdown',stop);b.addEventListener('click',function(e){stop(e);document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active')})}});
+  ['orbitSkinsNav','orbitHomeNav','orbitRankingsNav'].forEach(function(id){var b=document.getElementById(id);if(b){b.addEventListener('pointerdown',function(e){e.stopPropagation()});b.addEventListener('click',function(e){stop(e);document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active')})}});
   var ORBIT_LB_URL='https://lmtcnbhdnryivjgupuct.supabase.co/functions/v1/orbit-leaderboard';
   var orbitIdentity=null;
   function orbitPlatform(){return /Android/i.test(navigator.userAgent)?'android':'web'}
@@ -85,12 +85,12 @@ SAFE_UI = r'''/* SIMPLE STACK STYLE UI */
     var x=orbitLoadIdentity();await orbitEnsureRegistered();
     try{var d=await orbitLbCall({action:'rankings',limit:50,playerId:x.id}),rows=d.rankings||[],html='';for(var i=0;i<rows.length;i++){var r=rows[i],me=r.player_id===x.id;html+='<div class="orbit-rank-row'+(me?' me':'')+'"><div class="orbit-rank-pos">#'+(i+1)+'</div><div class="orbit-rank-name">'+orbitEsc(r.player_name)+'</div><div class="orbit-rank-score">'+Number(r.best_score||0)+'</div></div>'}if(list)list.innerHTML=html||'<div class="orbit-rank-empty">No scores yet</div>';var mine=d.me;var mn=document.getElementById('orbitRankMyName'),ms=document.getElementById('orbitRankMyScore'),mp=document.getElementById('orbitRankMyPlace');if(mn)mn.textContent=(mine&&mine.player_name)||x.name;if(ms)ms.textContent=String((mine&&mine.best_score)||0);if(mp)mp.textContent=mine&&mine.rank?'#'+mine.rank:'#—'}catch(e){if(list)list.innerHTML='<div class="orbit-rank-empty">Unable to load rankings</div>';console.warn(e)}
   }
-  function orbitOpenRankings(e){stop(e);var m=document.getElementById('orbitRankingsModal');if(m)m.classList.remove('hidden');orbitLoadRankings()}
-  function orbitCloseRankings(e){stop(e);var m=document.getElementById('orbitRankingsModal');if(m)m.classList.add('hidden');var h=document.getElementById('orbitHomeNav');document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});if(h)h.classList.add('active')}
+  var orbitRankOpenAt=0;function orbitOpenRankings(e){stop(e);var now=Date.now();if(now-orbitRankOpenAt<220)return;orbitRankOpenAt=now;var m=document.getElementById('orbitRankingsModal');if(m){m.classList.remove('hidden');m.style.display='flex'}orbitLoadRankings()}
+  function orbitCloseRankings(e){stop(e);var m=document.getElementById('orbitRankingsModal');if(m){m.classList.add('hidden');m.style.display=''}var h=document.getElementById('orbitHomeNav');document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});if(h)h.classList.add('active')}
   function orbitOpenName(e){stop(e);var x=orbitLoadIdentity(),m=document.getElementById('orbitNameModal'),inp=document.getElementById('orbitPlayerNameInput');if(inp)inp.value=x.name;if(m)m.classList.remove('hidden');setTimeout(function(){if(inp){inp.focus();inp.select()}},60)}
   async function orbitSaveName(e){stop(e);var inp=document.getElementById('orbitPlayerNameInput'),v=(inp?inp.value:'').replace(/[\u0000-\u001f\u007f]/g,'').trim().replace(/\s+/g,' ').slice(0,20);if(v.length<2)return;var x=orbitLoadIdentity();x.name=v;orbitIdentity=x;orbitSaveIdentity();await orbitEnsureRegistered();var m=document.getElementById('orbitNameModal');if(m)m.classList.add('hidden');orbitLoadRankings()}
   orbitLoadIdentity();orbitEnsureRegistered();
-  var rankBtn=document.getElementById('orbitRankingsNav');if(rankBtn)rankBtn.addEventListener('click',orbitOpenRankings);
+  var rankBtn=document.getElementById('orbitRankingsNav');if(rankBtn){rankBtn.addEventListener('pointerup',orbitOpenRankings);rankBtn.addEventListener('click',orbitOpenRankings)};
   var rankClose=document.getElementById('orbitRankingsClose');if(rankClose)rankClose.addEventListener('click',orbitCloseRankings);
   var rankRefresh=document.getElementById('orbitRankRefresh');if(rankRefresh)rankRefresh.addEventListener('click',function(e){stop(e);orbitLoadRankings()});
   var rankRename=document.getElementById('orbitRankRename');if(rankRename)rankRename.addEventListener('click',orbitOpenName);
