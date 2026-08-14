@@ -1,0 +1,43 @@
+name: Temporary fix start prompt mobile override
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/temp-fix-start-prompt-mobile.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Remove conflicting small-height start rule
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tools/fix_simple_ui.py')
+          s=p.read_text(encoding='utf-8')
+          old='@media(max-height:620px){#start .simple-tap,#gameover .simple-tap{top:min(74vh,calc(100vh - 90px))!important}'
+          new='@media(max-height:620px){#gameover .simple-tap{top:min(74vh,calc(100vh - 90px))!important}'
+          if old not in s and new not in s:
+              raise SystemExit('small-height prompt rule not found')
+          if old in s:
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Validate
+        run: |
+          python3 -m py_compile tools/fix_simple_ui.py
+          ! grep -Fq '#start .simple-tap,#gameover .simple-tap{top:min(74vh' tools/fix_simple_ui.py
+          grep -Fq '#gameover .simple-tap{top:min(74vh' tools/fix_simple_ui.py
+          grep -Fq 'body.menu-start #start .simple-tap{display:block!important' tools/fix_simple_ui.py
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/fix_simple_ui.py
+          git commit -m 'Fix TAP TO START small-screen override'
+          git push
