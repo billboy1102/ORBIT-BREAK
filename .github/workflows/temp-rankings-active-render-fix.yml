@@ -1,0 +1,65 @@
+name: Temporary Rankings active render fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/temp-rankings-active-render-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Tie Rankings render to active nav state
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tools/fix_simple_ui.py')
+          s=p.read_text(encoding='utf-8')
+
+          old="""['orbitSkinsNav','orbitHomeNav','orbitRankingsNav'].forEach(function(id){var b=document.getElementById(id);if(b){b.addEventListener('pointerdown',function(e){e.stopPropagation()});b.addEventListener('click',function(e){stop(e);document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active')})}});"""
+          new="""['orbitSkinsNav','orbitHomeNav','orbitRankingsNav'].forEach(function(id){var b=document.getElementById(id);if(b){b.addEventListener('pointerdown',function(e){e.stopPropagation()});b.addEventListener('click',function(e){stop(e);document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active');var m=document.getElementById('orbitRankingsModal');if(id==='orbitRankingsNav'){if(m){m.classList.remove('hidden');m.removeAttribute('hidden');m.style.setProperty('display','flex','important');m.style.setProperty('visibility','visible','important');m.style.setProperty('opacity','1','important');m.style.setProperty('pointer-events','auto','important');m.style.setProperty('z-index','500','important')}try{if(typeof orbitLoadRankings==='function')orbitLoadRankings()}catch(err){console.warn(err)}}else if(m){m.style.removeProperty('display');m.style.removeProperty('visibility');m.style.removeProperty('opacity');m.style.removeProperty('pointer-events');m.style.removeProperty('z-index');m.classList.add('hidden')}})}});"""
+          if old not in s:
+              raise SystemExit('generic bottom-nav listener snippet not found')
+          s=s.replace(old,new,1)
+
+          css='body:has(#orbitRankingsNav.active) #orbitRankingsModal.hidden{display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;z-index:500!important}body:has(#orbitRankingsNav.active) #orbitRankingsModal{display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;z-index:500!important}'
+          if css not in s:
+              marker='@keyframes simpleTapPulse'
+              if marker not in s:
+                  raise SystemExit('CSS insertion marker not found')
+              s=s.replace(marker,css+marker,1)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Validate generated Pages code
+        shell: bash
+        run: |
+          python3 -m py_compile tools/fix_simple_ui.py
+          cp index.html /tmp/orbit-index.html
+          python3 tools/apply_native_music_pack.py --ui-only /tmp/orbit-index.html
+          python3 tools/fix_simple_ui.py /tmp/orbit-index.html
+          grep -q "id==='orbitRankingsNav'" /tmp/orbit-index.html
+          grep -q "body:has(#orbitRankingsNav.active)" /tmp/orbit-index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('/tmp/orbit-index.html').read_text(encoding='utf-8')
+          start=h.find('<script>')+len('<script>')
+          end=h.rfind('</script>')
+          assert start >= len('<script>') and end > start
+          Path('/tmp/orbit-wrapper.js').write_text(h[start:end],encoding='utf-8')
+          PY
+          node --check /tmp/orbit-wrapper.js
+      - name: Commit Rankings fix
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/fix_simple_ui.py
+          git commit -m 'Render Rankings directly from active nav tab'
+          git push origin HEAD:main
