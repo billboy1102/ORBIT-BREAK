@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Apply simple menu UI
+        run: python3 tools/apply_native_music_pack.py --ui-only index.html
       - name: Setup Pages
         uses: actions/configure-pages@v6
       - name: Upload static site
