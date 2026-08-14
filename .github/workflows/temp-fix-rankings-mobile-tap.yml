@@ -1,0 +1,77 @@
+name: Temporary rankings mobile tap fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/temp-fix-rankings-mobile-tap.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Fix Rankings tap handling on mobile
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('tools/fix_simple_ui.py')
+          s = p.read_text(encoding='utf-8')
+
+          old_nav = "  ['orbitSkinsNav','orbitHomeNav','orbitRankingsNav'].forEach(function(id){var b=document.getElementById(id);if(b){b.addEventListener('pointerdown',stop);b.addEventListener('click',function(e){stop(e);document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active')})}});"
+          new_nav = "  ['orbitSkinsNav','orbitHomeNav','orbitRankingsNav'].forEach(function(id){var b=document.getElementById(id);if(b){b.addEventListener('pointerdown',function(e){e.stopPropagation()});b.addEventListener('click',function(e){stop(e);document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active')})}});"
+          if old_nav not in s:
+              raise SystemExit('nav handler marker not found')
+          s = s.replace(old_nav, new_nav, 1)
+
+          old_open = "  function orbitOpenRankings(e){stop(e);var m=document.getElementById('orbitRankingsModal');if(m)m.classList.remove('hidden');orbitLoadRankings()}"
+          new_open = "  var orbitRankOpenAt=0;function orbitOpenRankings(e){stop(e);var now=Date.now();if(now-orbitRankOpenAt<220)return;orbitRankOpenAt=now;var m=document.getElementById('orbitRankingsModal');if(m){m.classList.remove('hidden');m.style.display='flex'}orbitLoadRankings()}"
+          if old_open not in s:
+              raise SystemExit('rank open marker not found')
+          s = s.replace(old_open, new_open, 1)
+
+          old_bind = "  var rankBtn=document.getElementById('orbitRankingsNav');if(rankBtn)rankBtn.addEventListener('click',orbitOpenRankings);"
+          new_bind = "  var rankBtn=document.getElementById('orbitRankingsNav');if(rankBtn){rankBtn.addEventListener('pointerup',orbitOpenRankings);rankBtn.addEventListener('click',orbitOpenRankings)};"
+          if old_bind not in s:
+              raise SystemExit('rank bind marker not found')
+          s = s.replace(old_bind, new_bind, 1)
+
+          # Closing must undo the inline display fallback used when opening.
+          old_close = "  function orbitCloseRankings(e){stop(e);var m=document.getElementById('orbitRankingsModal');if(m)m.classList.add('hidden');var h=document.getElementById('orbitHomeNav');document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});if(h)h.classList.add('active')}"
+          new_close = "  function orbitCloseRankings(e){stop(e);var m=document.getElementById('orbitRankingsModal');if(m){m.classList.add('hidden');m.style.display=''}var h=document.getElementById('orbitHomeNav');document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});if(h)h.classList.add('active')}"
+          if old_close not in s:
+              raise SystemExit('rank close marker not found')
+          s = s.replace(old_close, new_close, 1)
+
+          p.write_text(s, encoding='utf-8')
+          print('rankings mobile tap handling fixed')
+          PY
+
+      - name: Validate generator and generated wrapper
+        run: |
+          python3 -m py_compile tools/fix_simple_ui.py
+          cp index.html /tmp/orbit-index.html
+          python3 tools/apply_native_music_pack.py --ui-only /tmp/orbit-index.html
+          python3 tools/fix_simple_ui.py /tmp/orbit-index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          html=Path('/tmp/orbit-index.html').read_text()
+          start=html.find('<script>')+len('<script>')
+          end=html.rfind('</script>')
+          Path('/tmp/orbit-wrapper.js').write_text(html[start:end])
+          PY
+          node --check /tmp/orbit-wrapper.js
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/fix_simple_ui.py
+          git commit -m 'Fix Rankings opening on mobile taps'
+          git push origin HEAD:main
