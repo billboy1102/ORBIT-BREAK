@@ -43,6 +43,7 @@ jobs:
         run: |
           python3 -m py_compile tools/fix_simple_ui.py
           cp index.html /tmp/orbit-index.html
+          python3 tools/apply_native_music_pack.py --ui-only /tmp/orbit-index.html
           python3 tools/fix_simple_ui.py /tmp/orbit-index.html
           python3 - <<'PY'
           from pathlib import Path
