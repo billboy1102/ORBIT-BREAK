@@ -118,6 +118,7 @@ function rhythmUi(){
     el.final=document.getElementById('finalScore');el.high=document.getElementById('highScore');el.finalCombo=document.getElementById('finalCombo');
   }
   document.body.classList.add('menu-start');
+  if(el.score)el.score.style.display='none';
 }
 rhythmUi();
 /* Disable all moving neon text-box billboards while keeping the cyberpunk background itself. */
@@ -159,7 +160,7 @@ chooseGoal=function(){
 };
 reset=function(){
   score=0;combo=1;bestCombo=1;hits=0;speed=2.15;dir=1;progress=0;goal=2.65;anchor={x:0,y:0};startAngle=-Math.PI/2;camera={x:0,y:0};trail=[];sparks=[];history=[];shake=0;flash=0;message='';
-  rhythmStart();chooseGoal();buildTarget();state='play';document.body.classList.remove('menu-start','menu-over');el.start.classList.add('hidden');el.over.classList.add('hidden');updateHUD();rhythmTone(330,.06,.045,'triangle');
+  rhythmStart();chooseGoal();buildTarget();state='play';document.body.classList.remove('menu-start','menu-over');if(el.score)el.score.style.display='block';el.start.classList.add('hidden');el.over.classList.add('hidden');updateHUD();rhythmTone(330,.06,.045,'triangle');
 };
 success=function(delta){
   const old={...anchor};history.push({x1:old.x,y1:old.y,x2:target.x,y2:target.y,life:1});if(history.length>90)history.shift();anchor={x:target.x,y:target.y};startAngle=Math.atan2(old.y-anchor.y,old.x-anchor.x);progress=0;hits++;
@@ -167,7 +168,7 @@ success=function(delta){
   bestCombo=1;speed=Math.min(5.35,2.15+hits*.09);flash=perfect?.52:.32;burst(anchor.x,anchor.y,perfect?28:16);if(navigator.vibrate)navigator.vibrate(perfect?16:8);chooseGoal();buildTarget();updateHUD();
 };
 die=function(label){
-  if(state!=='play')return;state='dying';message=label;shake=13;flash=1;rhythmFail();rhythmStop();if(navigator.vibrate)navigator.vibrate([25,35,55]);
+  if(state!=='play')return;state='dying';message=label;shake=13;flash=1;if(el.score)el.score.style.display='none';rhythmFail();rhythmStop();if(navigator.vibrate)navigator.vibrate([25,35,55]);
   setTimeout(function(){state='over';high=Math.max(high,score);localStorage.setItem('orbitBreakHigh',String(high));el.final.textContent=score;el.high.textContent=high;el.finalCombo.textContent='x'+bestCombo;document.body.classList.add('menu-over');el.over.classList.remove('hidden')},430);
 };
 update=function(dt){
