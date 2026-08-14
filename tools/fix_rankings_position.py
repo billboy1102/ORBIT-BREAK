@@ -23,3 +23,5 @@ if __name__ == '__main__':
         raise SystemExit('usage: fix_rankings_position.py <html> [<html> ...]')
     for item in sys.argv[1:]:
         fix(Path(item))
+
+# Keep native packages rebuilt after shared UI/gameplay updates.
