@@ -54,7 +54,8 @@ SAFE_UI = r'''/* SIMPLE STACK STYLE UI */
   function closeSettings(e){stop(e);modal.classList.add('hidden')}
   function openGuide(e){stop(e);modal.classList.add('hidden');guide.classList.remove('hidden')}
   function closeGuide(e){stop(e);guide.classList.add('hidden');modal.classList.remove('hidden')}
-  ['orbitSkinsNav','orbitHomeNav','orbitRankingsNav'].forEach(function(id){var b=document.getElementById(id);if(b){b.addEventListener('pointerdown',stop);b.addEventListener('click',function(e){stop(e);document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active')})}});\n  var ORBIT_LB_URL='https://lmtcnbhdnryivjgupuct.supabase.co/functions/v1/orbit-leaderboard';
+  ['orbitSkinsNav','orbitHomeNav','orbitRankingsNav'].forEach(function(id){var b=document.getElementById(id);if(b){b.addEventListener('pointerdown',stop);b.addEventListener('click',function(e){stop(e);document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active')})}});
+  var ORBIT_LB_URL='https://lmtcnbhdnryivjgupuct.supabase.co/functions/v1/orbit-leaderboard';
   var orbitIdentity=null;
   function orbitPlatform(){return /Android/i.test(navigator.userAgent)?'android':'web'}
   function orbitHex(bytes){return Array.from(bytes).map(function(b){return b.toString(16).padStart(2,'0')}).join('')}
@@ -87,7 +88,7 @@ SAFE_UI = r'''/* SIMPLE STACK STYLE UI */
   function orbitOpenRankings(e){stop(e);var m=document.getElementById('orbitRankingsModal');if(m)m.classList.remove('hidden');orbitLoadRankings()}
   function orbitCloseRankings(e){stop(e);var m=document.getElementById('orbitRankingsModal');if(m)m.classList.add('hidden');var h=document.getElementById('orbitHomeNav');document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});if(h)h.classList.add('active')}
   function orbitOpenName(e){stop(e);var x=orbitLoadIdentity(),m=document.getElementById('orbitNameModal'),inp=document.getElementById('orbitPlayerNameInput');if(inp)inp.value=x.name;if(m)m.classList.remove('hidden');setTimeout(function(){if(inp){inp.focus();inp.select()}},60)}
-  async function orbitSaveName(e){stop(e);var inp=document.getElementById('orbitPlayerNameInput'),v=(inp?inp.value:'').replace(/[\\u0000-\\u001f\\u007f]/g,'').trim().replace(/\\s+/g,' ').slice(0,20);if(v.length<2)return;var x=orbitLoadIdentity();x.name=v;orbitIdentity=x;orbitSaveIdentity();await orbitEnsureRegistered();var m=document.getElementById('orbitNameModal');if(m)m.classList.add('hidden');orbitLoadRankings()}
+  async function orbitSaveName(e){stop(e);var inp=document.getElementById('orbitPlayerNameInput'),v=(inp?inp.value:'').replace(/[\u0000-\u001f\u007f]/g,'').trim().replace(/\s+/g,' ').slice(0,20);if(v.length<2)return;var x=orbitLoadIdentity();x.name=v;orbitIdentity=x;orbitSaveIdentity();await orbitEnsureRegistered();var m=document.getElementById('orbitNameModal');if(m)m.classList.add('hidden');orbitLoadRankings()}
   orbitLoadIdentity();orbitEnsureRegistered();
   var rankBtn=document.getElementById('orbitRankingsNav');if(rankBtn)rankBtn.addEventListener('click',orbitOpenRankings);
   var rankClose=document.getElementById('orbitRankingsClose');if(rankClose)rankClose.addEventListener('click',orbitCloseRankings);
