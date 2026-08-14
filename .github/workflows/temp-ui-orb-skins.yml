@@ -1,0 +1,97 @@
+name: Temporary skins menu UI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/temp-ui-orb-skins.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Patch skins menu UI
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tools/fix_simple_ui.py')
+          s=p.read_text(encoding='utf-8')
+          css="#orbitSkinsModal{position:fixed;inset:0 0 calc(84px + env(safe-area-inset-bottom)) 0;z-index:510;display:flex;align-items:flex-start;justify-content:center;padding:max(18px,env(safe-area-inset-top)) 12px 18px;overflow:auto;background:radial-gradient(circle at 50% 0,rgba(80,230,255,.16),transparent 34%),linear-gradient(180deg,rgba(3,8,20,.97),rgba(2,5,12,.91));backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}#orbitSkinsModal.hidden{display:none!important}.orbit-skins-panel{position:relative;width:min(94vw,520px);margin:max(42px,5vh) auto 18px;padding:20px 14px 18px;border:1px solid rgba(108,237,255,.34);border-radius:24px;background:linear-gradient(180deg,rgba(10,22,37,.97),rgba(5,12,24,.96));box-shadow:0 28px 90px rgba(0,0,0,.62),0 0 42px rgba(49,220,255,.10);color:#fff;font-family:Arial,Helvetica,sans-serif}.orbit-skins-panel h2{margin:4px 44px 4px;text-align:center;font-size:clamp(32px,8vw,46px);font-weight:250;letter-spacing:.11em;text-shadow:0 0 20px rgba(113,241,255,.28)}.orbit-skins-sub{text-align:center;margin:0 0 16px;font-size:10px;font-weight:650;letter-spacing:.18em;color:rgba(126,236,255,.68)}.orbit-skins-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-height:min(62vh,600px);overflow:auto;padding:3px}.orbit-skin-card{position:relative;min-height:128px;padding:13px 10px 11px;border:1px solid rgba(255,255,255,.11);border-radius:17px;background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(255,255,255,.018));color:#fff;text-align:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.035);transition:.16s}.orbit-skin-card:active{transform:scale(.975)}.orbit-skin-card.selected{border-color:rgba(91,238,255,.78);background:linear-gradient(160deg,rgba(42,197,220,.16),rgba(18,61,78,.12));box-shadow:0 0 18px rgba(67,229,255,.16),inset 0 0 20px rgba(73,226,255,.045)}.orbit-skin-preview{height:61px;display:flex;align-items:center;justify-content:center;gap:17px}.orbit-skin-ball{width:37px;height:37px;border-radius:50%;background:var(--c);border:2px solid var(--e);box-shadow:0 0 8px var(--c),0 0 20px var(--c),inset -6px -7px 9px rgba(0,0,0,.15)}.orbit-skin-link{position:absolute;width:34px;height:3px;border-radius:999px;background:linear-gradient(90deg,var(--b),var(--a));box-shadow:0 0 9px var(--a)}.orbit-skin-name{margin-top:4px;font-size:11px;font-weight:700;letter-spacing:.08em;color:rgba(244,253,255,.94)}.orbit-skin-equipped{height:16px;margin-top:5px;font-size:8px;font-weight:750;letter-spacing:.13em;color:#75f4ff}.orbit-skin-check{position:absolute;right:8px;top:8px;width:20px;height:20px;border-radius:50%;display:none;align-items:center;justify-content:center;background:#65ecf6;color:#05202a;font-size:12px;font-weight:900;box-shadow:0 0 12px rgba(101,236,246,.5)}.orbit-skin-card.selected .orbit-skin-check{display:flex}@media(max-width:350px){.orbit-skins-grid{gap:7px}.orbit-skin-card{min-height:116px;padding-left:7px;padding-right:7px}.orbit-skin-ball{width:32px;height:32px}.orbit-skin-preview{gap:14px}}@media(max-height:700px){#orbitSkinsModal{bottom:calc(72px + env(safe-area-inset-bottom))}.orbit-skins-panel{margin-top:24px}.orbit-skins-grid{max-height:56vh}.orbit-skin-card{min-height:112px}.orbit-skin-preview{height:52px}}"
+          if '#orbitSkinsModal{' not in s:
+              if '@keyframes simpleTapPulse' not in s: raise SystemExit('CSS marker not found')
+              s=s.replace('@keyframes simpleTapPulse',css+'@keyframes simpleTapPulse',1)
+          marker="  var rankings=document.createElement('div');rankings.id='orbitRankingsModal';"
+          dom="  var skinsModal=document.createElement('div');skinsModal.id='orbitSkinsModal';skinsModal.className='hidden';skinsModal.innerHTML='<div class=\"orbit-skins-panel\"><button class=\"orbit-close\" id=\"orbitSkinsClose\" aria-label=\"Close\">×</button><h2 id=\"orbitSkinsTitle\">SKINS</h2><div class=\"orbit-skins-sub\" id=\"orbitSkinsSub\">CHOOSE YOUR ORBIT PAIR</div><div class=\"orbit-skins-grid\" id=\"orbitSkinsGrid\"></div></div>';document.body.appendChild(skinsModal);\n"
+          if 'var skinsModal=document.createElement' not in s:
+              if marker not in s: raise SystemExit('rankings DOM marker not found')
+              s=s.replace(marker,dom+marker,1)
+          funcs=(
+              "  var ORBIT_SKINS_UI=[{name:'NEON PULSE',a:'#62f6ff',b:'#ff45cf',ea:'#e8ffff',eb:'#ffe1f6'},{name:'SOLAR FLARE',a:'#ffd84d',b:'#ff6b2c',ea:'#fff7ca',eb:'#ffe0c9'},{name:'TOXIC NOVA',a:'#9dff4a',b:'#a855f7',ea:'#efffd7',eb:'#f1ddff'},{name:'ICE FIRE',a:'#72e7ff',b:'#ff4d6d',ea:'#e5fbff',eb:'#ffe0e6'},{name:'ROYAL VOID',a:'#b277ff',b:'#ffd166',ea:'#f2e7ff',eb:'#fff3c7'},{name:'SAKURA',a:'#fff0f7',b:'#ff77b7',ea:'#ffffff',eb:'#ffe1ef'},{name:'MATRIX',a:'#39ff88',b:'#0ac7a2',ea:'#e0ffec',eb:'#d8fff6'},{name:'PLASMA',a:'#5d7cff',b:'#ff405d',ea:'#e4e9ff',eb:'#ffe2e7'},{name:'OCEAN TIDE',a:'#46f0dc',b:'#3388ff',ea:'#dcfffa',eb:'#dceaff'},{name:'CANDY POP',a:'#ffe45e',b:'#ff62d0',ea:'#fff9d6',eb:'#ffe2f7'},{name:'GHOST',a:'#f5ffff',b:'#b9a7ff',ea:'#ffffff',eb:'#eeeaff'},{name:'INFERNO',a:'#ff9b2f',b:'#20e3ff',ea:'#ffead3',eb:'#dcfbff'}];\n"
+              "  function orbitSkinSelected(){var n=parseInt(localStorage.getItem('orbitBreakSkin')||'0',10);return isFinite(n)&&n>=0&&n<ORBIT_SKINS_UI.length?n:0}\n"
+              "  function orbitRenderSkins(){var g=document.getElementById('orbitSkinsGrid');if(!g)return;var selected=orbitSkinSelected(),vi=orbitSettings.language==='vi',html='';for(var i=0;i<ORBIT_SKINS_UI.length;i++){var x=ORBIT_SKINS_UI[i];html+='<button class=\"orbit-skin-card '+(i===selected?'selected':'')+'\" data-skin=\"'+i+'\" style=\"--a:'+x.a+';--b:'+x.b+'\"><div class=\"orbit-skin-check\">✓</div><div class=\"orbit-skin-preview\"><span class=\"orbit-skin-ball\" style=\"--c:'+x.b+';--e:'+x.eb+'\"></span><span class=\"orbit-skin-link\"></span><span class=\"orbit-skin-ball\" style=\"--c:'+x.a+';--e:'+x.ea+'\"></span></div><div class=\"orbit-skin-name\">'+x.name+'</div><div class=\"orbit-skin-equipped\">'+(i===selected?(vi?'ĐANG DÙNG':'EQUIPPED'):'')+'</div></button>'}g.innerHTML=html}\n"
+              "  function orbitHideSkins(){var m=document.getElementById('orbitSkinsModal');if(m){m.classList.add('hidden');m.style.removeProperty('display');m.style.removeProperty('z-index')}var nav=document.getElementById('orbitBottomNav');if(nav)nav.style.removeProperty('z-index')}\n"
+              "  function orbitOpenSkins(e){if(e){e.preventDefault();e.stopPropagation()}var r=document.getElementById('orbitRankingsModal');if(r)r.classList.add('hidden');var m=document.getElementById('orbitSkinsModal');if(m){m.classList.remove('hidden');m.style.setProperty('display','flex','important');m.style.setProperty('z-index','510','important')}var nav=document.getElementById('orbitBottomNav');if(nav)nav.style.setProperty('z-index','600','important');orbitRenderSkins()}\n"
+              "  function orbitChooseSkin(i,e){stop(e);i=Math.max(0,Math.min(ORBIT_SKINS_UI.length-1,Math.floor(Number(i)||0)));try{localStorage.setItem('orbitBreakSkin',String(i))}catch(err){}try{window.dispatchEvent(new CustomEvent('orbit-skin-change',{detail:i}))}catch(err){}orbitRenderSkins()}\n"
+          )
+          marker="  ['orbitSkinsNav','orbitHomeNav','orbitRankingsNav'].forEach(function(id)"
+          if 'var ORBIT_SKINS_UI=' not in s:
+              if marker not in s: raise SystemExit('nav marker not found')
+              s=s.replace(marker,funcs+marker,1)
+          old="var orbitRankOpenAt=0;function orbitShowRankings(){var m=document.getElementById('orbitRankingsModal');if(!m)return;"
+          new="var orbitRankOpenAt=0;function orbitShowRankings(){orbitHideSkins();var m=document.getElementById('orbitRankingsModal');if(!m)return;"
+          if new not in s:
+              if old not in s: raise SystemExit('rank show marker not found')
+              s=s.replace(old,new,1)
+          handlers=(
+              "  var skinBtn=document.getElementById('orbitSkinsNav');if(skinBtn){var orbitSkinDirectOpen=function(e){if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation()}document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});skinBtn.classList.add('active');orbitOpenSkins(null)};skinBtn.addEventListener('pointerdown',orbitSkinDirectOpen,true);skinBtn.addEventListener('touchstart',orbitSkinDirectOpen,{capture:true,passive:false});skinBtn.addEventListener('click',orbitSkinDirectOpen,true)};\n"
+              "  var skinsGrid=document.getElementById('orbitSkinsGrid');if(skinsGrid)skinsGrid.addEventListener('click',function(e){var c=e.target.closest('.orbit-skin-card');if(c)orbitChooseSkin(Number(c.getAttribute('data-skin')),e)});\n"
+              "  var skinsClose=document.getElementById('orbitSkinsClose');if(skinsClose)skinsClose.addEventListener('click',function(e){stop(e);orbitHideSkins();document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});var h=document.getElementById('orbitHomeNav');if(h)h.classList.add('active')});\n"
+              "  skinsModal.addEventListener('pointerdown',function(e){e.stopPropagation();if(e.target===skinsModal){orbitHideSkins();document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});var h=document.getElementById('orbitHomeNav');if(h)h.classList.add('active')}});\n"
+          )
+          marker="  var rankBtn=document.getElementById('orbitRankingsNav');"
+          if 'var skinBtn=document.getElementById' not in s:
+              if marker not in s: raise SystemExit('rank button marker not found')
+              s=s.replace(marker,handlers+marker,1)
+          old="set('orbitRankingsLabel',vi?'XẾP HẠNG':'RANKINGS');set('orbitRankingsTitle',vi?'XẾP HẠNG':'RANKINGS');"
+          new="set('orbitRankingsLabel',vi?'XẾP HẠNG':'RANKINGS');set('orbitSkinsTitle',vi?'GIAO DIỆN':'SKINS');set('orbitSkinsSub',vi?'CHỌN BỘ ĐÔI QUẢ CẦU':'CHOOSE YOUR ORBIT PAIR');set('orbitRankingsTitle',vi?'XẾP HẠNG':'RANKINGS');orbitRenderSkins();"
+          if new not in s:
+              if old not in s: raise SystemExit('language marker not found')
+              s=s.replace(old,new,1)
+          old="['orbitSkinsNav','orbitHomeNav'].forEach(function(id){var b=document.getElementById(id);if(b)b.addEventListener('click',function(e){orbitCloseRankings(e)})});"
+          new="['orbitHomeNav'].forEach(function(id){var b=document.getElementById(id);if(b)b.addEventListener('click',function(e){orbitHideSkins();orbitCloseRankings(e)})});"
+          if new not in s:
+              if old not in s: raise SystemExit('home close marker not found')
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Validate generated UI
+        shell: bash
+        run: |
+          python3 -m py_compile tools/fix_simple_ui.py
+          cp index.html /tmp/orbit-index.html
+          python3 tools/apply_native_music_pack.py --ui-only /tmp/orbit-index.html
+          python3 tools/fix_simple_ui.py /tmp/orbit-index.html
+          python3 tools/fix_rankings_position.py /tmp/orbit-index.html
+          grep -q 'orbitSkinsModal' /tmp/orbit-index.html
+          grep -q 'ORBIT_SKINS_UI' /tmp/orbit-index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('/tmp/orbit-index.html').read_text(encoding='utf-8')
+          a=h.find('<script>')+len('<script>')
+          b=h.rfind('</script>')
+          Path('/tmp/wrapper.js').write_text(h[a:b],encoding='utf-8')
+          PY
+          node --check /tmp/wrapper.js
+      - name: Commit skins menu
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/fix_simple_ui.py
+          git commit -m 'Add orb skins selection menu'
+          git push origin HEAD:main
