@@ -28,6 +28,7 @@ jobs:
           PY
           node --check /tmp/game.js
           cp index.html /tmp/skin-test.html
+          python3 tools/apply_native_music_pack.py --ui-only /tmp/skin-test.html
           python3 tools/fix_simple_ui.py /tmp/skin-test.html
           python3 tools/fix_rankings_position.py /tmp/skin-test.html
           python3 - <<'PY'
