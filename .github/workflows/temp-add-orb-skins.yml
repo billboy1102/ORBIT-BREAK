@@ -1,0 +1,163 @@
+name: Temporary add orb skins
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/temp-add-orb-skins.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Add gameplay orb skins
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('game-base.html')
+          s=p.read_text(encoding='utf-8')
+
+          themes="const THEMES=[{name:'NEON CITY',bg:'#10142a',bg2:'#040812',a:'#62f6ff',b:'#ff45cf',c:'#809cff'},{name:'COSMIC GRID',bg:'#1d1132',bg2:'#04050c',a:'#86ffab',b:'#52d6ff',c:'#bf7cff'},{name:'AURORA CORE',bg:'#0c2630',bg2:'#020609',a:'#69ffe1',b:'#7b86ff',c:'#a0ff70'},{name:'DATA STORM',bg:'#211018',bg2:'#050609',a:'#ff6f86',b:'#ffd05d',c:'#55eaff'}];"
+          skins="const ORB_SKINS=[{name:'NEON PULSE',a:'#62f6ff',b:'#ff45cf',ea:'#e8ffff',eb:'#ffe1f6',glow:18},{name:'SOLAR FLARE',a:'#ffd84d',b:'#ff6b2c',ea:'#fff7ca',eb:'#ffe0c9',glow:20},{name:'TOXIC NOVA',a:'#9dff4a',b:'#a855f7',ea:'#efffd7',eb:'#f1ddff',glow:19},{name:'ICE FIRE',a:'#72e7ff',b:'#ff4d6d',ea:'#e5fbff',eb:'#ffe0e6',glow:20},{name:'ROYAL VOID',a:'#b277ff',b:'#ffd166',ea:'#f2e7ff',eb:'#fff3c7',glow:21},{name:'SAKURA',a:'#fff0f7',b:'#ff77b7',ea:'#ffffff',eb:'#ffe1ef',glow:17},{name:'MATRIX',a:'#39ff88',b:'#0ac7a2',ea:'#e0ffec',eb:'#d8fff6',glow:20},{name:'PLASMA',a:'#5d7cff',b:'#ff405d',ea:'#e4e9ff',eb:'#ffe2e7',glow:22},{name:'OCEAN TIDE',a:'#46f0dc',b:'#3388ff',ea:'#dcfffa',eb:'#dceaff',glow:20},{name:'CANDY POP',a:'#ffe45e',b:'#ff62d0',ea:'#fff9d6',eb:'#ffe2f7',glow:18},{name:'GHOST',a:'#f5ffff',b:'#b9a7ff',ea:'#ffffff',eb:'#eeeaff',glow:24},{name:'INFERNO',a:'#ff9b2f',b:'#20e3ff',ea:'#ffead3',eb:'#dcfbff',glow:23}];"
+          if skins not in s:
+              if themes not in s: raise SystemExit('THEMES marker not found')
+              s=s.replace(themes,themes+'\n'+skins,1)
+
+          old="themeNow=0,themePrev=0,themeAt=0;"
+          new="themeNow=0,themePrev=0,themeAt=0,skinIndex=clamp(parseInt(localStorage.getItem('orbitBreakSkin')||'0',10)||0,0,ORB_SKINS.length-1);"
+          if new not in s:
+              if old not in s: raise SystemExit('state marker not found')
+              s=s.replace(old,new,1)
+
+          old="function circle(x,y,r,f,s,w=1){ctx.beginPath();ctx.arc(x,y,r,0,TAU);if(f){ctx.fillStyle=f;ctx.fill()}if(s){ctx.strokeStyle=s;ctx.lineWidth=w;ctx.stroke()}}function arc(x,y,r,a0,a1,s,w){ctx.beginPath();ctx.arc(x,y,r,a0,a1);ctx.strokeStyle=s;ctx.lineWidth=w;ctx.lineCap='round';ctx.stroke()}"
+          new=old+"function skinOrb(x,y,r,fill,edge,glow){ctx.save();ctx.shadowColor=fill;ctx.shadowBlur=glow||18;circle(x,y,r,fill,edge,2);ctx.restore()}"
+          if 'function skinOrb(' not in s:
+              if old not in s: raise SystemExit('circle/arc marker not found')
+              s=s.replace(old,new,1)
+
+          old="function drawWorld(){let t=THEMES[themeNow],a=anchor,b=ballPos();"
+          new="function drawWorld(){let t=THEMES[themeNow],skin=ORB_SKINS[skinIndex]||ORB_SKINS[0],a=anchor,b=ballPos();"
+          if new not in s:
+              if old not in s: raise SystemExit('drawWorld marker not found')
+              s=s.replace(old,new,1)
+
+          old="for(let q of trail)circle(q.x,q.y,5*q.life,rgba(t.a,q.life*.55));let g=ctx.createLinearGradient(a.x,a.y,b.x,b.y);g.addColorStop(0,rgba(t.b,.85));g.addColorStop(1,rgba(t.a,.85));ctx.strokeStyle=rgba(t.a,.16);ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.strokeStyle=g;ctx.lineWidth=3.3;ctx.stroke();circle(a.x,a.y,15,t.b,'#ffe1ef',2);circle(b.x,b.y,15,t.a,'#e0ffff',2);if(flash>.03){let r=18+(1-clamp(flash,0,1))*110;circle(a.x,a.y,r,null,rgba(t.b,.24*flash),1.5+flash*3);circle(b.x,b.y,r*.72,null,rgba(t.a,.2*flash),1+flash*2)}"
+          new="for(let q of trail)circle(q.x,q.y,5*q.life,rgba(skin.a,q.life*.58));let g=ctx.createLinearGradient(a.x,a.y,b.x,b.y);g.addColorStop(0,rgba(skin.b,.92));g.addColorStop(1,rgba(skin.a,.92));ctx.strokeStyle=rgba(skin.a,.18);ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.strokeStyle=g;ctx.lineWidth=3.3;ctx.stroke();skinOrb(a.x,a.y,15,skin.b,skin.eb,skin.glow);skinOrb(b.x,b.y,15,skin.a,skin.ea,skin.glow);if(flash>.03){let r=18+(1-clamp(flash,0,1))*110;circle(a.x,a.y,r,null,rgba(skin.b,.27*flash),1.5+flash*3);circle(b.x,b.y,r*.72,null,rgba(skin.a,.23*flash),1+flash*2)}"
+          if new not in s:
+              if old not in s: raise SystemExit('orb render block not found')
+              s=s.replace(old,new,1)
+
+          old="function loop(t){now=t;let dt=Math.min(.033,(t-last)/1000||0);last=t;update(dt);draw();requestAnimationFrame(loop)}addEventListener('resize',resize,{passive:true});"
+          new="function loop(t){now=t;let dt=Math.min(.033,(t-last)/1000||0);last=t;update(dt);draw();requestAnimationFrame(loop)}addEventListener('orbit-skin-change',e=>{let i=Number(e&&e.detail);if(Number.isFinite(i))skinIndex=clamp(Math.floor(i),0,ORB_SKINS.length-1)});addEventListener('resize',resize,{passive:true});"
+          if new not in s:
+              if old not in s: raise SystemExit('loop marker not found')
+              s=s.replace(old,new,1)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Add Skins menu UI
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tools/fix_simple_ui.py')
+          s=p.read_text(encoding='utf-8')
+
+          css="#orbitSkinsModal{position:fixed;inset:0 0 calc(84px + env(safe-area-inset-bottom)) 0;z-index:510;display:flex;align-items:flex-start;justify-content:center;padding:max(18px,env(safe-area-inset-top)) 12px 18px;overflow:auto;background:radial-gradient(circle at 50% 0,rgba(80,230,255,.16),transparent 34%),linear-gradient(180deg,rgba(3,8,20,.97),rgba(2,5,12,.91));backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}#orbitSkinsModal.hidden{display:none!important}.orbit-skins-panel{position:relative;width:min(94vw,520px);margin:max(42px,5vh) auto 18px;padding:20px 14px 18px;border:1px solid rgba(108,237,255,.34);border-radius:24px;background:linear-gradient(180deg,rgba(10,22,37,.97),rgba(5,12,24,.96));box-shadow:0 28px 90px rgba(0,0,0,.62),0 0 42px rgba(49,220,255,.10);color:#fff;font-family:Arial,Helvetica,sans-serif}.orbit-skins-panel h2{margin:4px 44px 4px;text-align:center;font-size:clamp(32px,8vw,46px);font-weight:250;letter-spacing:.11em;text-shadow:0 0 20px rgba(113,241,255,.28)}.orbit-skins-sub{text-align:center;margin:0 0 16px;font-size:10px;font-weight:650;letter-spacing:.18em;color:rgba(126,236,255,.68)}.orbit-skins-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-height:min(62vh,600px);overflow:auto;padding:3px}.orbit-skin-card{position:relative;min-height:128px;padding:13px 10px 11px;border:1px solid rgba(255,255,255,.11);border-radius:17px;background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(255,255,255,.018));color:#fff;text-align:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.035);transition:.16s}.orbit-skin-card:active{transform:scale(.975)}.orbit-skin-card.selected{border-color:rgba(91,238,255,.78);background:linear-gradient(160deg,rgba(42,197,220,.16),rgba(18,61,78,.12));box-shadow:0 0 18px rgba(67,229,255,.16),inset 0 0 20px rgba(73,226,255,.045)}.orbit-skin-preview{height:61px;display:flex;align-items:center;justify-content:center;gap:17px}.orbit-skin-ball{width:37px;height:37px;border-radius:50%;background:var(--c);border:2px solid var(--e);box-shadow:0 0 8px var(--c),0 0 20px color-mix(in srgb,var(--c) 62%,transparent),inset -6px -7px 9px rgba(0,0,0,.15)}.orbit-skin-link{position:absolute;width:34px;height:3px;border-radius:999px;background:linear-gradient(90deg,var(--b),var(--a));box-shadow:0 0 9px var(--a)}.orbit-skin-name{margin-top:4px;font-size:11px;font-weight:700;letter-spacing:.08em;color:rgba(244,253,255,.94)}.orbit-skin-equipped{height:16px;margin-top:5px;font-size:8px;font-weight:750;letter-spacing:.13em;color:#75f4ff}.orbit-skin-check{position:absolute;right:8px;top:8px;width:20px;height:20px;border-radius:50%;display:none;align-items:center;justify-content:center;background:#65ecf6;color:#05202a;font-size:12px;font-weight:900;box-shadow:0 0 12px rgba(101,236,246,.5)}.orbit-skin-card.selected .orbit-skin-check{display:flex}@media(max-width:350px){.orbit-skins-grid{gap:7px}.orbit-skin-card{min-height:116px;padding-left:7px;padding-right:7px}.orbit-skin-ball{width:32px;height:32px}.orbit-skin-preview{gap:14px}}@media(max-height:700px){#orbitSkinsModal{bottom:calc(72px + env(safe-area-inset-bottom))}.orbit-skins-panel{margin-top:24px}.orbit-skins-grid{max-height:56vh}.orbit-skin-card{min-height:112px}.orbit-skin-preview{height:52px}}"
+          if '#orbitSkinsModal{' not in s:
+              marker='@keyframes simpleTapPulse'
+              if marker not in s: raise SystemExit('CSS marker not found')
+              s=s.replace(marker,css+marker,1)
+
+          marker="  var rankings=document.createElement('div');rankings.id='orbitRankingsModal';"
+          skin_dom="  var skinsModal=document.createElement('div');skinsModal.id='orbitSkinsModal';skinsModal.className='hidden';skinsModal.innerHTML='<div class=\"orbit-skins-panel\"><button class=\"orbit-close\" id=\"orbitSkinsClose\" aria-label=\"Close\">×</button><h2 id=\"orbitSkinsTitle\">SKINS</h2><div class=\"orbit-skins-sub\" id=\"orbitSkinsSub\">CHOOSE YOUR ORBIT PAIR</div><div class=\"orbit-skins-grid\" id=\"orbitSkinsGrid\"></div></div>';document.body.appendChild(skinsModal);\n"
+          if 'var skinsModal=document.createElement' not in s:
+              if marker not in s: raise SystemExit('rankings DOM marker not found')
+              s=s.replace(marker,skin_dom+marker,1)
+
+          funcs="""  var ORBIT_SKINS_UI=[{name:'NEON PULSE',a:'#62f6ff',b:'#ff45cf',ea:'#e8ffff',eb:'#ffe1f6'},{name:'SOLAR FLARE',a:'#ffd84d',b:'#ff6b2c',ea:'#fff7ca',eb:'#ffe0c9'},{name:'TOXIC NOVA',a:'#9dff4a',b:'#a855f7',ea:'#efffd7',eb:'#f1ddff'},{name:'ICE FIRE',a:'#72e7ff',b:'#ff4d6d',ea:'#e5fbff',eb:'#ffe0e6'},{name:'ROYAL VOID',a:'#b277ff',b:'#ffd166',ea:'#f2e7ff',eb:'#fff3c7'},{name:'SAKURA',a:'#fff0f7',b:'#ff77b7',ea:'#ffffff',eb:'#ffe1ef'},{name:'MATRIX',a:'#39ff88',b:'#0ac7a2',ea:'#e0ffec',eb:'#d8fff6'},{name:'PLASMA',a:'#5d7cff',b:'#ff405d',ea:'#e4e9ff',eb:'#ffe2e7'},{name:'OCEAN TIDE',a:'#46f0dc',b:'#3388ff',ea:'#dcfffa',eb:'#dceaff'},{name:'CANDY POP',a:'#ffe45e',b:'#ff62d0',ea:'#fff9d6',eb:'#ffe2f7'},{name:'GHOST',a:'#f5ffff',b:'#b9a7ff',ea:'#ffffff',eb:'#eeeaff'},{name:'INFERNO',a:'#ff9b2f',b:'#20e3ff',ea:'#ffead3',eb:'#dcfbff'}];
+  function orbitSkinSelected(){var n=parseInt(localStorage.getItem('orbitBreakSkin')||'0',10);return isFinite(n)&&n>=0&&n<ORBIT_SKINS_UI.length?n:0}
+  function orbitRenderSkins(){var g=document.getElementById('orbitSkinsGrid');if(!g)return;var selected=orbitSkinSelected(),vi=orbitSettings.language==='vi',html='';for(var i=0;i<ORBIT_SKINS_UI.length;i++){var x=ORBIT_SKINS_UI[i];html+='<button class=\"orbit-skin-card '+(i===selected?'selected':'')+'\" data-skin=\"'+i+'\" style=\"--a:'+x.a+';--b:'+x.b+';--e1:'+x.ea+';--e2:'+x.eb+'\"><div class=\"orbit-skin-check\">✓</div><div class=\"orbit-skin-preview\"><span class=\"orbit-skin-ball\" style=\"--c:'+x.b+';--e:'+x.eb+'\"></span><span class=\"orbit-skin-link\"></span><span class=\"orbit-skin-ball\" style=\"--c:'+x.a+';--e:'+x.ea+'\"></span></div><div class=\"orbit-skin-name\">'+x.name+'</div><div class=\"orbit-skin-equipped\">'+(i===selected?(vi?'ĐANG DÙNG':'EQUIPPED'):'')+'</div></button>'}g.innerHTML=html}
+  function orbitHideSkins(){var m=document.getElementById('orbitSkinsModal');if(m){m.classList.add('hidden');m.style.removeProperty('display');m.style.removeProperty('z-index')}var nav=document.getElementById('orbitBottomNav');if(nav)nav.style.removeProperty('z-index')}
+  function orbitOpenSkins(e){if(e){e.preventDefault();e.stopPropagation()}var r=document.getElementById('orbitRankingsModal');if(r)r.classList.add('hidden');var m=document.getElementById('orbitSkinsModal');if(m){m.classList.remove('hidden');m.style.setProperty('display','flex','important');m.style.setProperty('z-index','510','important')}var nav=document.getElementById('orbitBottomNav');if(nav)nav.style.setProperty('z-index','600','important');orbitRenderSkins()}
+  function orbitChooseSkin(i,e){stop(e);i=Math.max(0,Math.min(ORBIT_SKINS_UI.length-1,Math.floor(Number(i)||0)));try{localStorage.setItem('orbitBreakSkin',String(i))}catch(err){}try{window.dispatchEvent(new CustomEvent('orbit-skin-change',{detail:i}))}catch(err){}orbitRenderSkins()}
+"""
+          marker="  ['orbitSkinsNav','orbitHomeNav','orbitRankingsNav'].forEach(function(id)"
+          if 'var ORBIT_SKINS_UI=' not in s:
+              if marker not in s: raise SystemExit('nav function marker not found')
+              s=s.replace(marker,funcs+marker,1)
+
+          old="var orbitRankOpenAt=0;function orbitShowRankings(){var m=document.getElementById('orbitRankingsModal');if(!m)return;"
+          new="var orbitRankOpenAt=0;function orbitShowRankings(){orbitHideSkins();var m=document.getElementById('orbitRankingsModal');if(!m)return;"
+          if new not in s:
+              if old not in s: raise SystemExit('orbitShowRankings marker not found')
+              s=s.replace(old,new,1)
+
+          marker="  var rankBtn=document.getElementById('orbitRankingsNav');"
+          skin_handlers="""  var skinBtn=document.getElementById('orbitSkinsNav');if(skinBtn){var orbitSkinDirectOpen=function(e){if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation()}document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});skinBtn.classList.add('active');orbitOpenSkins(null)};skinBtn.addEventListener('pointerdown',orbitSkinDirectOpen,true);skinBtn.addEventListener('touchstart',orbitSkinDirectOpen,{capture:true,passive:false});skinBtn.addEventListener('click',orbitSkinDirectOpen,true)};
+  var skinsGrid=document.getElementById('orbitSkinsGrid');if(skinsGrid)skinsGrid.addEventListener('click',function(e){var c=e.target.closest('.orbit-skin-card');if(c)orbitChooseSkin(Number(c.getAttribute('data-skin')),e)});
+  var skinsClose=document.getElementById('orbitSkinsClose');if(skinsClose)skinsClose.addEventListener('click',function(e){stop(e);orbitHideSkins();document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});var h=document.getElementById('orbitHomeNav');if(h)h.classList.add('active')});
+  skinsModal.addEventListener('pointerdown',function(e){e.stopPropagation();if(e.target===skinsModal){orbitHideSkins();document.querySelectorAll('.orbit-nav-btn').forEach(function(x){x.classList.remove('active')});var h=document.getElementById('orbitHomeNav');if(h)h.classList.add('active')}});
+"""
+          if 'var skinBtn=document.getElementById' not in s:
+              if marker not in s: raise SystemExit('rankBtn marker not found')
+              s=s.replace(marker,skin_handlers+marker,1)
+
+          old="set('orbitRankingsLabel',vi?'XẾP HẠNG':'RANKINGS');set('orbitRankingsTitle',vi?'XẾP HẠNG':'RANKINGS');"
+          new="set('orbitRankingsLabel',vi?'XẾP HẠNG':'RANKINGS');set('orbitSkinsTitle',vi?'GIAO DIỆN':'SKINS');set('orbitSkinsSub',vi?'CHỌN BỘ ĐÔI QUẢ CẦU':'CHOOSE YOUR ORBIT PAIR');set('orbitRankingsTitle',vi?'XẾP HẠNG':'RANKINGS');orbitRenderSkins();"
+          if new not in s:
+              if old not in s: raise SystemExit('language skins marker not found')
+              s=s.replace(old,new,1)
+
+          old="['orbitSkinsNav','orbitHomeNav'].forEach(function(id){var b=document.getElementById(id);if(b)b.addEventListener('click',function(e){orbitCloseRankings(e)})});"
+          new="['orbitHomeNav'].forEach(function(id){var b=document.getElementById(id);if(b)b.addEventListener('click',function(e){orbitHideSkins();orbitCloseRankings(e)})});"
+          if new not in s:
+              if old not in s: raise SystemExit('home close marker not found')
+              s=s.replace(old,new,1)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Validate skins build
+        shell: bash
+        run: |
+          python3 -m py_compile tools/fix_simple_ui.py
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('game-base.html').read_text(encoding='utf-8')
+          assert 'const ORB_SKINS=' in h
+          assert "localStorage.getItem('orbitBreakSkin')" in h
+          assert "addEventListener('orbit-skin-change'" in h
+          start=h.find('<script>')+len('<script>'); end=h.rfind('</script>')
+          Path('/tmp/game.js').write_text(h[start:end],encoding='utf-8')
+          PY
+          node --check /tmp/game.js
+          cp index.html /tmp/orbit-index.html
+          python3 tools/apply_native_music_pack.py --ui-only /tmp/orbit-index.html
+          python3 tools/fix_simple_ui.py /tmp/orbit-index.html
+          python3 tools/fix_rankings_position.py /tmp/orbit-index.html
+          grep -q "id='orbitSkinsModal'\|id=\\\"orbitSkinsModal\\\"\|orbitSkinsModal" /tmp/orbit-index.html
+          grep -q "ORBIT_SKINS_UI" /tmp/orbit-index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('/tmp/orbit-index.html').read_text(encoding='utf-8')
+          start=h.find('<script>')+len('<script>'); end=h.rfind('</script>')
+          Path('/tmp/wrapper.js').write_text(h[start:end],encoding='utf-8')
+          PY
+          node --check /tmp/wrapper.js
+
+      - name: Commit skins
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add game-base.html tools/fix_simple_ui.py
+          git commit -m 'Add selectable orb skin pairs'
+          git push origin HEAD:main
