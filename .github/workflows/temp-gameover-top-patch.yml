@@ -57,3 +57,5 @@ jobs:
           git add index.html
           git commit -m 'Move game over title and stats to top'
           git push
+
+# trigger second run
