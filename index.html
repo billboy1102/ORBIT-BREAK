@@ -28,6 +28,8 @@ const addon=String.raw`
 const RHYTHM_BPM=138,RHYTHM_BEAT=60/RHYTHM_BPM;
 let rhythmGain=null,rhythmSfx=null,rhythmNoise=null,rhythmTimer=null,rhythmStarted=false,rhythmPhase=0,rhythmNextBeat=0,rhythmBeatIndex=0,rhythmSegmentStart=0;
 let rhythmBeatDot=null,rhythmBeatBar=null;
+let orbitSettings={vibration:true,language:'vi',volume:1};
+try{const saved=JSON.parse(localStorage.getItem('orbitBreakSettings')||'null');if(saved&&typeof saved==='object'){if(typeof saved.vibration==='boolean')orbitSettings.vibration=saved.vibration;if(saved.language==='vi'||saved.language==='en')orbitSettings.language=saved.language;if(Number.isFinite(Number(saved.volume)))orbitSettings.volume=Math.max(0,Math.min(1,Number(saved.volume)))}}catch(e){}
 
 function rhythmInit(){
   try{
@@ -38,7 +40,7 @@ function rhythmInit(){
       const comp=audioCtx.createDynamicsCompressor();comp.threshold.value=-18;comp.knee.value=18;comp.ratio.value=4;comp.attack.value=.003;comp.release.value=.22;
       master.connect(comp);comp.connect(audioCtx.destination);
       rhythmGain=audioCtx.createGain();rhythmGain.gain.value=.0001;rhythmGain.connect(master);
-      rhythmSfx=audioCtx.createGain();rhythmSfx.gain.value=.9;rhythmSfx.connect(master);
+      rhythmSfx=audioCtx.createGain();rhythmSfx.gain.value=.9*orbitSettings.volume;rhythmSfx.connect(master);
       rhythmNoise=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*.25),audioCtx.sampleRate);
       const d=rhythmNoise.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
     }
@@ -80,7 +82,7 @@ function rhythmStart(){
   if(!rhythmInit())return;
   if(rhythmTimer)clearInterval(rhythmTimer);
   const t=audioCtx.currentTime+.08;rhythmStarted=true;rhythmPhase=t;rhythmNextBeat=t;rhythmBeatIndex=0;
-  rhythmGain.gain.cancelScheduledValues(audioCtx.currentTime);rhythmGain.gain.setValueAtTime(Math.max(.0001,rhythmGain.gain.value),audioCtx.currentTime);rhythmGain.gain.exponentialRampToValueAtTime(.62,audioCtx.currentTime+.18);
+  rhythmGain.gain.cancelScheduledValues(audioCtx.currentTime);rhythmGain.gain.setValueAtTime(Math.max(.0001,rhythmGain.gain.value),audioCtx.currentTime);rhythmGain.gain.exponentialRampToValueAtTime(Math.max(.0001,.62*orbitSettings.volume),audioCtx.currentTime+.18);
   rhythmSchedule();rhythmTimer=setInterval(rhythmSchedule,30);
 }
 function rhythmStop(){
@@ -165,10 +167,10 @@ reset=function(){
 success=function(delta){
   const old={...anchor};history.push({x1:old.x,y1:old.y,x2:target.x,y2:target.y,life:1});if(history.length>90)history.shift();anchor={x:target.x,y:target.y};startAngle=Math.atan2(old.y-anchor.y,old.x-anchor.x);progress=0;hits++;
   const error=delta/Math.max(.01,speed),perfect=error<=.055;score+=1;combo=1;if(perfect){toast('BEAT PERFECT','#8bffd5')}else{toast('ON BEAT','#ffe47a')}rhythmHit(perfect);
-  bestCombo=1;speed=Math.min(5.35,2.15+hits*.09);flash=perfect?.52:.32;burst(anchor.x,anchor.y,perfect?28:16);if(navigator.vibrate)navigator.vibrate(perfect?16:8);chooseGoal();buildTarget();updateHUD();
+  bestCombo=1;speed=Math.min(5.35,2.15+hits*.09);flash=perfect?.52:.32;burst(anchor.x,anchor.y,perfect?28:16);if(orbitSettings.vibration&&navigator.vibrate)navigator.vibrate(perfect?16:8);chooseGoal();buildTarget();updateHUD();
 };
 die=function(label){
-  if(state!=='play')return;state='dying';message=label;shake=13;flash=1;if(el.score)el.score.style.display='none';rhythmFail();rhythmStop();if(navigator.vibrate)navigator.vibrate([25,35,55]);
+  if(state!=='play')return;state='dying';message=label;shake=13;flash=1;if(el.score)el.score.style.display='none';rhythmFail();rhythmStop();if(orbitSettings.vibration&&navigator.vibrate)navigator.vibrate([25,35,55]);
   setTimeout(function(){state='over';high=Math.max(high,score);localStorage.setItem('orbitBreakHigh',String(high));el.final.textContent=score;el.high.textContent=high;el.finalCombo.textContent='x'+bestCombo;document.body.classList.add('menu-over');el.over.classList.remove('hidden')},430);
 };
 update=function(dt){
