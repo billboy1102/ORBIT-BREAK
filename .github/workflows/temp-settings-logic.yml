@@ -1,0 +1,51 @@
+name: Temporary settings logic patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/temp-settings-logic.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-settings-logic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add persistent settings hooks
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          marker="let rhythmBeatDot=null,rhythmBeatBar=null;"
+          settings="""let rhythmBeatDot=null,rhythmBeatBar=null;\nlet orbitSettings={vibration:true,language:'vi',volume:1};\ntry{const saved=JSON.parse(localStorage.getItem('orbitBreakSettings')||'null');if(saved&&typeof saved==='object'){if(typeof saved.vibration==='boolean')orbitSettings.vibration=saved.vibration;if(saved.language==='vi'||saved.language==='en')orbitSettings.language=saved.language;if(Number.isFinite(Number(saved.volume)))orbitSettings.volume=Math.max(0,Math.min(1,Number(saved.volume)))}}catch(e){}"""
+          if 'let orbitSettings=' not in s:
+              if marker not in s:
+                  raise SystemExit('settings insertion marker not found')
+              s=s.replace(marker,settings,1)
+
+          s=s.replace("rhythmSfx=audioCtx.createGain();rhythmSfx.gain.value=.9;rhythmSfx.connect(master);","rhythmSfx=audioCtx.createGain();rhythmSfx.gain.value=.9*orbitSettings.volume;rhythmSfx.connect(master);",1)
+          s=s.replace("rhythmGain.gain.exponentialRampToValueAtTime(.62,audioCtx.currentTime+.18);","rhythmGain.gain.exponentialRampToValueAtTime(Math.max(.0001,.62*orbitSettings.volume),audioCtx.currentTime+.18);",1)
+          s=s.replace("if(navigator.vibrate)navigator.vibrate(perfect?16:8);","if(orbitSettings.vibration&&navigator.vibrate)navigator.vibrate(perfect?16:8);",1)
+          s=s.replace("if(navigator.vibrate)navigator.vibrate([25,35,55]);","if(orbitSettings.vibration&&navigator.vibrate)navigator.vibrate([25,35,55]);",1)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit settings logic
+        shell: bash
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'No settings logic changes.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Wire vibration language and volume settings'
+          git push
