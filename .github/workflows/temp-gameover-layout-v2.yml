@@ -54,3 +54,5 @@ jobs:
           git add index.html
           git commit -m 'Raise score and best, remove combo, lower retry prompt'
           git push
+
+# trigger v2
