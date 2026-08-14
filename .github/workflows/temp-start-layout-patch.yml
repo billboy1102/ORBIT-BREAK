@@ -29,11 +29,13 @@ jobs:
           if marker not in text:
               raise SystemExit('Could not find rhythmUi style insertion marker')
 
-          override = r'''  document.head.appendChild(style);
-  const startTopStyle=document.createElement('style');
-  startTopStyle.textContent='body.menu-start .top{opacity:1;transform:none}#start{position:absolute;left:50%;top:max(120px,16vh);transform:translateX(-50%);width:min(92vw,560px);padding:0;background:none;border:0;box-shadow:none;backdrop-filter:none;filter:none;z-index:20;pointer-events:none}#start .menu-emblem,#start .cta{display:none!important}#start .logo{margin:0;font-size:clamp(46px,13vw,74px);line-height:.92;font-weight:800;letter-spacing:-3px;white-space:nowrap;background:none;-webkit-background-clip:border-box;background-clip:border-box;color:#fff;text-shadow:0 0 16px rgba(255,255,255,.34),0 0 34px rgba(89,234,255,.18);filter:none}#start .tap-start{margin-top:28px;font-size:clamp(19px,5.2vw,29px);font-weight:400;letter-spacing:.5px;color:rgba(255,255,255,.94);text-shadow:0 0 14px rgba(255,255,255,.22);animation:tapStartPulse 1.55s ease-in-out infinite}@keyframes tapStartPulse{0%,100%{opacity:.62}50%{opacity:1}}@media(max-height:650px){#start{top:max(94px,14vh)}#start .logo{font-size:clamp(40px,11vw,58px)}#start .tap-start{margin-top:16px;font-size:18px}}';
-  document.head.appendChild(startTopStyle);
-  const start=document.getElementById('start');'''
+          override = "\n".join([
+              "  document.head.appendChild(style);",
+              "  const startTopStyle=document.createElement('style');",
+              "  startTopStyle.textContent='body.menu-start .top{opacity:1;transform:none}#start{position:absolute;left:50%;top:max(120px,16vh);transform:translateX(-50%);width:min(92vw,560px);padding:0;background:none;border:0;box-shadow:none;backdrop-filter:none;filter:none;z-index:20;pointer-events:none}#start .menu-emblem,#start .cta{display:none!important}#start .logo{margin:0;font-size:clamp(46px,13vw,74px);line-height:.92;font-weight:800;letter-spacing:-3px;white-space:nowrap;background:none;-webkit-background-clip:border-box;background-clip:border-box;color:#fff;text-shadow:0 0 16px rgba(255,255,255,.34),0 0 34px rgba(89,234,255,.18);filter:none}#start .tap-start{margin-top:28px;font-size:clamp(19px,5.2vw,29px);font-weight:400;letter-spacing:.5px;color:rgba(255,255,255,.94);text-shadow:0 0 14px rgba(255,255,255,.22);animation:tapStartPulse 1.55s ease-in-out infinite}@keyframes tapStartPulse{0%,100%{opacity:.62}50%{opacity:1}}@media(max-height:650px){#start{top:max(94px,14vh)}#start .logo{font-size:clamp(40px,11vw,58px)}#start .tap-start{margin-top:16px;font-size:18px}}';",
+              "  document.head.appendChild(startTopStyle);",
+              "  const start=document.getElementById('start');",
+          ])
           text = text.replace(marker, override, 1)
 
           pattern = r"  if\(start\)start\.innerHTML='[^\n]*';"
