@@ -23,14 +23,31 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
       - name: Apply simple menu UI
-        run: python3 tools/apply_native_music_pack.py --ui-only index.html
+        run: |
+          python3 tools/apply_native_music_pack.py --ui-only index.html
+          python3 tools/fix_simple_ui.py index.html
+
+      - name: Validate web wrapper syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          html=Path('index.html').read_text()
+          start=html.find('<script>')+len('<script>')
+          end=html.rfind('</script>')
+          Path('/tmp/orbit-wrapper.js').write_text(html[start:end])
+          PY
+          node --check /tmp/orbit-wrapper.js
+
       - name: Setup Pages
         uses: actions/configure-pages@v6
+
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4
         with:
           path: .
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
