@@ -21,10 +21,19 @@ jobs:
           p=Path('tools/fix_simple_ui.py')
           s=p.read_text(encoding='utf-8')
 
-          row='<div class=\\"orbit-setting-row\\"><div class=\\"orbit-setting-icon\\">▥</div><div class=\\"orbit-setting-label\\" id=\\"orbitVibrationLabel\\">Vibration</div><button class=\\"orbit-switch\\" id=\\"orbitVibrationToggle\\" aria-label=\\"Toggle vibration\\"></button></div>'
-          if row not in s:
-              raise SystemExit('vibration row not found')
-          s=s.replace(row,'',1)
+          label_markers=['id=\\"orbitVibrationLabel\\"','id="orbitVibrationLabel"']
+          idx=next((s.find(x) for x in label_markers if s.find(x)>=0),-1)
+          if idx<0:
+              raise SystemExit('vibration label marker not found')
+          starts=['<div class=\\"orbit-setting-row\\">','<div class="orbit-setting-row">']
+          start=max(s.rfind(x,0,idx) for x in starts)
+          if start<0:
+              raise SystemExit('vibration row start not found')
+          end=s.find('</button></div>',idx)
+          if end<0:
+              raise SystemExit('vibration row end not found')
+          end+=len('</button></div>')
+          s=s[:start]+s[end:]
 
           old="settings:vi?'CÀI ĐẶT':'SETTINGS',vibration:vi?'Rung':'Vibration',language:"
           new="settings:vi?'CÀI ĐẶT':'SETTINGS',language:"
