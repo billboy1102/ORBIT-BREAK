@@ -1,0 +1,51 @@
+name: Temporary fix ranking rename modal
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/temp-fix-ranking-rename-modal.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Put rename modal above Rankings
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tools/fix_simple_ui.py')
+          s=p.read_text(encoding='utf-8')
+          old='.orbit-name-modal{position:fixed;inset:0;z-index:240;display:flex;'
+          new='.orbit-name-modal{position:fixed;inset:0;z-index:750;display:flex;'
+          if old not in s:
+              if new in s:
+                  print('already patched')
+              else:
+                  raise SystemExit('name modal z-index rule not found')
+          else:
+              s=s.replace(old,new,1)
+          # Add a defensive visible-state rule so Rankings/nav can never cover the rename dialog.
+          marker='.orbit-name-modal.hidden{display:none!important}'
+          extra='#orbitNameModal:not(.hidden){z-index:750!important;display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important}'
+          if extra not in s:
+              if marker not in s: raise SystemExit('name modal hidden marker not found')
+              s=s.replace(marker,marker+extra,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Validate
+        run: |
+          python3 -m py_compile tools/fix_simple_ui.py
+          grep -Fq '.orbit-name-modal{position:fixed;inset:0;z-index:750;display:flex;' tools/fix_simple_ui.py
+          grep -Fq '#orbitNameModal:not(.hidden){z-index:750!important' tools/fix_simple_ui.py
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/fix_simple_ui.py
+          git commit -m 'Show rename dialog above Rankings' || exit 0
+          git push
