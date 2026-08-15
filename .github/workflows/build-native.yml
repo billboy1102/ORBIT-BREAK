@@ -93,6 +93,7 @@ jobs:
           rm -rf web
           mkdir -p web
           cp index.html game-base.html web/
+          if [ -d assets ]; then cp -R assets web/; fi
           python3 tools/apply_native_music_pack.py web/index.html
           python3 tools/fix_simple_ui.py web/index.html
           python3 tools/fix_rankings_position.py web/index.html
