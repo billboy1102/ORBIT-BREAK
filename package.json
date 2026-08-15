@@ -18,6 +18,7 @@
       "index.html",
       "game-base.html",
       "desktop/**/*",
+      "assets/**/*",
       "package.json"
     ],
     "win": {
