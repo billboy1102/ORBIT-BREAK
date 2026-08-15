@@ -24,14 +24,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Apply simple menu UI
+      - name: Apply current game UI and branding
         run: |
           python3 tools/apply_native_music_pack.py --ui-only index.html
           python3 tools/fix_simple_ui.py index.html
           python3 tools/fix_rankings_position.py index.html
+          python3 tools/fix_branding.py index.html
 
-      - name: Validate web wrapper syntax
+      - name: Validate Bobbey splash and web wrapper
         run: |
+          test -s assets/bobbey-game-studio-splash.webp
+          test -s assets/orbit-break-icon.webp
+          grep -Fq 'assets/bobbey-game-studio-splash.webp' index.html
+          ! grep -Fq 'assets/bobbey-game-studio-splash.jpg' index.html
           python3 - <<'PY'
           from pathlib import Path
           html=Path('index.html').read_text()
