@@ -3,14 +3,6 @@ name: Build Windows and Android
 on:
   push:
     branches: [main]
-    paths:
-      - 'index.html'
-      - 'game-base.html'
-      - 'package.json'
-      - 'desktop/**'
-      - 'tools/**'
-      - 'capacitor.config.json'
-      - '.github/workflows/build-native.yml'
   workflow_dispatch:
 
 permissions:
@@ -29,7 +21,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Apply native music and safe simple UI
+      - name: Apply native music and current web UI
         run: |
           python tools/apply_native_music_pack.py desktop/index-windows.html
           python tools/fix_simple_ui.py desktop/index-windows.html
@@ -96,13 +88,57 @@ jobs:
       - name: Install Capacitor Android
         run: npm install --no-save @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
 
-      - name: Prepare web assets
+      - name: Prepare web assets from current web source
         run: |
+          rm -rf web
           mkdir -p web
           cp index.html game-base.html web/
           python3 tools/apply_native_music_pack.py web/index.html
           python3 tools/fix_simple_ui.py web/index.html
           python3 tools/fix_rankings_position.py web/index.html
+
+      - name: Verify Android UI matches current web features
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          html = Path('web/index.html').read_text(encoding='utf-8')
+          required = [
+              'id="orbitSkinsModal"',
+              'id="orbitRankingsModal"',
+              'id="orbitRankRename"',
+              'id="orbitNameModal"',
+              '#orbitNameModal:not(.hidden){z-index:750!important',
+              'id="simpleStartTap"',
+              'touch-action:pan-y!important',
+              'ORBIT_LB_URL',
+              'DISTINCT ORB SKINS',
+          ]
+          missing = [x for x in required if x not in html]
+          if missing:
+              raise SystemExit('Android UI is missing current web features: ' + ', '.join(missing))
+          forbidden = [
+              'id="orbitVibrationToggle"',
+              'id="orbitVibrationLabel"',
+              'bottom:calc(84px + env(safe-area-inset-bottom))!important;inset:auto!important;',
+          ]
+          bad = [x for x in forbidden if x in html]
+          if bad:
+              raise SystemExit('Android UI still contains obsolete web UI: ' + ', '.join(bad))
+          print('Android web assets contain the current Rankings, rename dialog, Skins, scrolling and Settings UI.')
+          PY
+
+      - name: Validate Android wrapper JavaScript
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          html = Path('web/index.html').read_text(encoding='utf-8')
+          start = html.find('<script>') + len('<script>')
+          end = html.rfind('</script>')
+          if start < len('<script>') or end <= start:
+              raise SystemExit('Unable to extract wrapper script')
+          Path('/tmp/orbit-android-wrapper.js').write_text(html[start:end], encoding='utf-8')
+          PY
+          node --check /tmp/orbit-android-wrapper.js
 
       - name: Generate Android project
         run: |
