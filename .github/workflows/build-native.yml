@@ -26,6 +26,13 @@ jobs:
           python tools/apply_native_music_pack.py desktop/index-windows.html
           python tools/fix_simple_ui.py desktop/index-windows.html
           python tools/fix_rankings_position.py desktop/index-windows.html
+          python tools/fix_branding.py desktop/index-windows.html
+
+      - name: Verify Windows Bobbey splash
+        shell: bash
+        run: |
+          test -s assets/bobbey-game-studio-splash.webp
+          grep -Fq '../assets/bobbey-game-studio-splash.webp' desktop/index-windows.html
 
       - name: Install Electron builder
         run: npm install --no-save electron@latest electron-builder@latest
@@ -85,8 +92,8 @@ jobs:
             echo "Android release signing: disabled; AAB will still be built unsigned"
           fi
 
-      - name: Install Capacitor Android
-        run: npm install --no-save @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
+      - name: Install Capacitor Android and image tools
+        run: npm install --no-save @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest sharp
 
       - name: Prepare web assets from current web source
         run: |
@@ -97,9 +104,14 @@ jobs:
           python3 tools/apply_native_music_pack.py web/index.html
           python3 tools/fix_simple_ui.py web/index.html
           python3 tools/fix_rankings_position.py web/index.html
+          python3 tools/fix_branding.py web/index.html
 
-      - name: Verify Android UI matches current web features
+      - name: Verify Android web UI and Bobbey splash
         run: |
+          test -s web/assets/bobbey-game-studio-splash.webp
+          test -s assets/orbit-break-icon.webp
+          grep -Fq 'assets/bobbey-game-studio-splash.webp' web/index.html
+          ! grep -Fq 'assets/bobbey-game-studio-splash.jpg' web/index.html
           python3 - <<'PY'
           from pathlib import Path
           html = Path('web/index.html').read_text(encoding='utf-8')
@@ -125,7 +137,7 @@ jobs:
           bad = [x for x in forbidden if x in html]
           if bad:
               raise SystemExit('Android UI still contains obsolete web UI: ' + ', '.join(bad))
-          print('Android web assets contain the current Rankings, rename dialog, Skins, scrolling and Settings UI.')
+          print('Android web assets contain current UI and the fixed Bobbey splash.')
           PY
 
       - name: Validate Android wrapper JavaScript
@@ -146,6 +158,86 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Apply ORBIT BREAK launcher icon and blank system splash
+        shell: bash
+        run: |
+          # Remove every generated/default launcher asset so the old blue Capacitor icon can never survive the build.
+          find android/app/src/main/res -type f \( -name 'ic_launcher*' -o -name 'splash*' \) -delete || true
+
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const sharp = require('sharp');
+
+          async function main(){
+            const src = 'assets/orbit-break-icon.webp';
+            const legacy = {mdpi:48, hdpi:72, xhdpi:96, xxhdpi:144, xxxhdpi:192};
+            const foreground = {mdpi:108, hdpi:162, xhdpi:216, xxhdpi:324, xxxhdpi:432};
+            for (const [density,size] of Object.entries(legacy)) {
+              const dir = `android/app/src/main/res/mipmap-${density}`;
+              fs.mkdirSync(dir,{recursive:true});
+              await sharp(src).resize(size,size,{fit:'cover'}).png().toFile(path.join(dir,'ic_launcher.png'));
+              await sharp(src).resize(size,size,{fit:'cover'}).png().toFile(path.join(dir,'ic_launcher_round.png'));
+            }
+            for (const [density,size] of Object.entries(foreground)) {
+              const dir = `android/app/src/main/res/mipmap-${density}`;
+              fs.mkdirSync(dir,{recursive:true});
+              await sharp(src).resize(size,size,{fit:'cover'}).png().toFile(path.join(dir,'ic_launcher_foreground.png'));
+            }
+            fs.mkdirSync('dist/store',{recursive:true});
+            await sharp(src).resize(512,512,{fit:'cover'}).png().toFile('dist/store/ORBIT-BREAK-Google-Play-Icon-512.png');
+          }
+          main().catch(err=>{console.error(err);process.exit(1)});
+          NODE
+
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/orbit_icon_background" />
+              <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+          </adaptive-icon>
+          XML
+          cp android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+
+          mkdir -p android/app/src/main/res/values android/app/src/main/res/drawable
+          cat > android/app/src/main/res/values/orbit_brand_colors.xml <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="orbit_icon_background">#050711</color>
+              <color name="orbit_splash_background">#03111A</color>
+          </resources>
+          XML
+
+          # Android requires a native launch splash. Make its icon fully transparent so the game icon never appears while entering the game.
+          cat > android/app/src/main/res/drawable/orbit_splash_blank.xml <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+              <solid android:color="@android:color/transparent" />
+              <size android:width="1dp" android:height="1dp" />
+          </shape>
+          XML
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('android/app/src/main/res/values/styles.xml')
+          s = p.read_text(encoding='utf-8')
+          launch = '''<style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+              <item name="windowSplashScreenBackground">@color/orbit_splash_background</item>
+              <item name="windowSplashScreenAnimatedIcon">@drawable/orbit_splash_blank</item>
+              <item name="windowSplashScreenAnimationDuration">1</item>
+              <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+              <item name="android:windowBackground">@color/orbit_splash_background</item>
+          </style>'''
+          pattern = r'<style\s+name="AppTheme\.NoActionBarLaunch"[^>]*>.*?</style>'
+          if not re.search(pattern, s, flags=re.S):
+              raise SystemExit('Capacitor launch theme not found')
+          s = re.sub(pattern, launch, s, count=1, flags=re.S)
+          p.write_text(s, encoding='utf-8')
+          PY
+
       - name: Force portrait orientation
         run: |
           python3 - <<'PY'
@@ -159,6 +251,20 @@ jobs:
               s = s[:j] + '\n            android:screenOrientation="portrait"' + s[j:]
               p.write_text(s)
           PY
+
+      - name: Verify Android branding
+        shell: bash
+        run: |
+          test -s android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          test -s android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          test -s android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+          test -s dist/store/ORBIT-BREAK-Google-Play-Icon-512.png
+          grep -Fq 'windowSplashScreenAnimatedIcon">@drawable/orbit_splash_blank' android/app/src/main/res/values/styles.xml
+          grep -Fq 'windowSplashScreenBackground">@color/orbit_splash_background' android/app/src/main/res/values/styles.xml
+          grep -Fq 'android:icon="@mipmap/ic_launcher"' android/app/src/main/AndroidManifest.xml
+          grep -Fq 'android:roundIcon="@mipmap/ic_launcher_round"' android/app/src/main/AndroidManifest.xml
+          ! grep -R -Fq '@drawable/splash' android/app/src/main/res/values/styles.xml
+          echo 'ORBIT BREAK launcher icon installed; native system splash is blank/dark; Bobbey artwork follows in WebView.'
 
       - name: Configure Android version and signing
         shell: bash
@@ -232,6 +338,14 @@ jobs:
         with:
           name: ORBIT-BREAK-AAB-v${{ env.VERSION_NAME }}
           path: dist/android/*.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Google Play icon
+        uses: actions/upload-artifact@v4
+        with:
+          name: ORBIT-BREAK-Google-Play-Icon-512
+          path: dist/store/ORBIT-BREAK-Google-Play-Icon-512.png
           if-no-files-found: error
           retention-days: 30
 
