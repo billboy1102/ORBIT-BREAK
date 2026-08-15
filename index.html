@@ -9,18 +9,21 @@
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050711}
 #gameFrame{position:fixed;inset:0;width:100%;height:100%;border:0;background:#050711;opacity:0;pointer-events:none;transition:opacity .12s ease}
 #gameFrame.ready{opacity:1;pointer-events:auto}
-#boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#a9faff;font:900 12px system-ui;letter-spacing:2px;background:#050711}
+#boot{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#03111a;overflow:hidden}
+#boot img{width:100%;height:100%;object-fit:contain;display:block}
 #boot.hide{display:none}
 </style>
 </head>
 <body>
-<div id="boot">SYNCING BEAT...</div>
+<div id="boot"><img src="assets/bobbey-game-studio-splash.jpg" alt=""></div>
 <iframe id="gameFrame" title="ORBIT BREAK"></iframe>
 <script>
 (() => {
 'use strict';
 const frame=document.getElementById('gameFrame');
 const boot=document.getElementById('boot');
+const bootStarted=performance.now();
+const finishBoot=()=>{boot.classList.add('hide');frame.classList.add('ready')};
 let patched=false;
 
 const addon=String.raw`
@@ -144,7 +147,7 @@ bossFx=function(t){let b=clamp((combo-5)/9,0,1);if(!b)return;let beat=typeof rhy
 /* Change theme every 3 hits instead of every 5. */
 drawBackground=function(){let n=Math.floor(hits/3)%THEMES.length;if(n!==themeNow){themePrev=themeNow;themeNow=n;themeAt=now;updateHUD()}let m=clamp((now-themeAt)/850,0,1),e=m*m*(3-2*m);ctx.fillStyle='#010308';ctx.fillRect(0,0,W,H);ctx.save();themeDraw(themePrev,THEMES[themePrev]);ctx.restore();if(themeNow!==themePrev){ctx.save();ctx.globalAlpha=e;themeDraw(themeNow,THEMES[themeNow]);ctx.restore()}deepTunnel(THEMES[themeNow]);bossFx(THEMES[themeNow]);let flow=clamp((speed-1.8)/3.7,0,1);for(let d of dust){let sh=now*.022*d.s*(.75+flow*1.25),x=((d.x-camera.x*.44-sh*Math.cos(d.a))%(W+180)+(W+180))%(W+180)-90,y=((d.y-camera.y*.44-sh*Math.sin(d.a))%(H+180)+(H+180))%(H+180)-90;ctx.strokeStyle=rgba(THEMES[themeNow].a,.05+flow*.17);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+d.l*(1+flow*.45)*Math.cos(d.a),y+d.l*(1+flow*.45)*Math.sin(d.a));ctx.stroke()}};
 const fastBaseTap=tap;removeEventListener('pointerdown',fastBaseTap);
-tap=function(e){if(e)e.preventDefault();if(state==='menu'||state==='over'){reset();return}if(state!=='play')return;let tol=clamp(speed*.075,.26,.42),d=Math.abs(progress-goal);d<=tol?success(d):die(progress<goal?'TOO EARLY':'MISS BEAT')};
+tap=function(e){if(e)e.preventDefault();if(state==='over'){rhythmStop();state='menu';document.body.classList.remove('menu-over');document.body.classList.add('menu-start');if(el.score)el.score.style.display='none';el.over.classList.add('hidden');el.start.classList.remove('hidden');return}if(state==='menu'){reset();return}if(state!=='play')return;let tol=clamp(speed*.075,.26,.42),d=Math.abs(progress-goal);d<=tol?success(d):die(progress<goal?'TOO EARLY':'MISS BEAT')};
 addEventListener('pointerdown',tap,{passive:false});
 
 
@@ -198,7 +201,7 @@ function patchGame(){
 }
 
 frame.addEventListener('load',()=>{
-  if(patched){boot.classList.add('hide');frame.classList.add('ready');return}
+  if(patched){setTimeout(finishBoot,Math.max(0,1800-(performance.now()-bootStarted)));return}
   try{patchGame()}catch(err){console.error(err);boot.textContent='RHYTHM LOAD FAILED';frame.classList.add('ready')}
 });
 frame.src='game-base.html';
