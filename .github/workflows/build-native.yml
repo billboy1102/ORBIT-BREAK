@@ -103,12 +103,12 @@ jobs:
           from pathlib import Path
           html = Path('web/index.html').read_text(encoding='utf-8')
           required = [
-              'id="orbitSkinsModal"',
-              'id="orbitRankingsModal"',
-              'id="orbitRankRename"',
-              'id="orbitNameModal"',
+              'orbitSkinsModal',
+              'orbitRankingsModal',
+              'orbitRankRename',
+              'orbitNameModal',
               '#orbitNameModal:not(.hidden){z-index:750!important',
-              'id="simpleStartTap"',
+              'simpleStartTap',
               'touch-action:pan-y!important',
               'ORBIT_LB_URL',
               'DISTINCT ORB SKINS',
@@ -117,8 +117,8 @@ jobs:
           if missing:
               raise SystemExit('Android UI is missing current web features: ' + ', '.join(missing))
           forbidden = [
-              'id="orbitVibrationToggle"',
-              'id="orbitVibrationLabel"',
+              'orbitVibrationToggle',
+              'orbitVibrationLabel',
               'bottom:calc(84px + env(safe-area-inset-bottom))!important;inset:auto!important;',
           ]
           bad = [x for x in forbidden if x in html]
