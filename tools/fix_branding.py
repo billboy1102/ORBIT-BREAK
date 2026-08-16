@@ -9,6 +9,8 @@ OLD_WEB = 'assets/bobbey-game-studio-splash.jpg'
 NEW_WEB = 'assets/bobbey-game-studio-splash.webp'
 OLD_DESKTOP = '../assets/bobbey-game-studio-splash.jpg'
 NEW_DESKTOP = '../assets/bobbey-game-studio-splash.webp'
+MAIL_BRIDGE = "const ORBIT_CONTACT_MAIL='mailto:partnerships@bobbey.net?subject=ORBIT%20BREAK%20Support';window.addEventListener('message',function(e){if(e&&e.data&&e.data.type==='orbit-open-mail'&&e.data.url===ORBIT_CONTACT_MAIL){window.location.href=ORBIT_CONTACT_MAIL}});"
+MAIL_ANCHOR = "const frame=document.getElementById('gameFrame');"
 
 
 def patch(path: str) -> None:
@@ -26,6 +28,14 @@ def patch(path: str) -> None:
 
     if NEW_WEB not in text and NEW_DESKTOP not in text:
         raise SystemExit(f'{path}: Bobbey splash reference was not found')
+
+    # The Settings UI runs inside the game iframe. Bridge its contact request to the
+    # top-level wrapper so Safari/Capacitor can hand mailto: to the installed mail app.
+    if MAIL_BRIDGE not in text:
+        if MAIL_ANCHOR not in text:
+            raise SystemExit(f'{path}: outer game-frame anchor was not found for contact mail bridge')
+        text = text.replace(MAIL_ANCHOR, MAIL_BRIDGE + '\n' + MAIL_ANCHOR, 1)
+
     p.write_text(text, encoding='utf-8')
 
     # Desktop wrapper has one fewer blank line before patchGame than web/android.
@@ -60,6 +70,10 @@ def patch(path: str) -> None:
         'orbitLegalDeleteData',
         'orbitLegalIconBtn',
         'orbitContactEmail',
+        'orbitOpenContactMail',
+        'window.top.location.href=url',
+        'ORBIT_CONTACT_MAIL',
+        "type==='orbit-open-mail'",
         'mailto:partnerships@bobbey.net',
     ]
     missing = [item for item in required if item not in final]
