@@ -27,6 +27,15 @@ def patch(path: str) -> None:
         raise SystemExit(f'{path}: Bobbey splash reference was not found')
     p.write_text(text, encoding='utf-8')
 
+    # Desktop wrapper has one fewer blank line before patchGame than web/android.
+    # Normalize it so the same legal injector works for every target.
+    normalized = p.read_text(encoding='utf-8')
+    web_anchor = '\n`;\n\nfunction patchGame(){'
+    desktop_anchor = '\n`;\nfunction patchGame(){'
+    if web_anchor not in normalized and desktop_anchor in normalized:
+        normalized = normalized.replace(desktop_anchor, web_anchor, 1)
+        p.write_text(normalized, encoding='utf-8')
+
     # Legal documentation is applied here so Pages, Android and Windows all receive
     # exactly the same Settings > Legal documentation UI without separate build logic.
     apply_legal_docs(p)
