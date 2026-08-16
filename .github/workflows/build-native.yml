@@ -176,16 +176,31 @@ jobs:
             for (const [density,size] of Object.entries(legacy)) {
               const dir = `android/app/src/main/res/mipmap-${density}`;
               fs.mkdirSync(dir,{recursive:true});
-              await sharp(src).resize(size,size,{fit:'cover'}).png().toFile(path.join(dir,'ic_launcher.png'));
-              await sharp(src).resize(size,size,{fit:'cover'}).png().toFile(path.join(dir,'ic_launcher_round.png'));
+              await sharp(src).resize(size,size,{fit:'contain'}).png().toFile(path.join(dir,'ic_launcher.png'));
+              await sharp(src).resize(size,size,{fit:'contain'}).png().toFile(path.join(dir,'ic_launcher_round.png'));
             }
+
+            // Adaptive icons are masked by each Android launcher. Keep the complete supplied
+            // rounded-square artwork inside Android's safe zone so its outer border is not cropped.
+            const adaptiveScale = 0.66;
             for (const [density,size] of Object.entries(foreground)) {
               const dir = `android/app/src/main/res/mipmap-${density}`;
               fs.mkdirSync(dir,{recursive:true});
-              await sharp(src).resize(size,size,{fit:'cover'}).png().toFile(path.join(dir,'ic_launcher_foreground.png'));
+              const artSize = Math.max(1, Math.round(size * adaptiveScale));
+              const left = Math.floor((size - artSize) / 2);
+              const top = Math.floor((size - artSize) / 2);
+              const artwork = await sharp(src).resize(artSize,artSize,{fit:'contain'}).png().toBuffer();
+              await sharp({
+                create: {
+                  width: size,
+                  height: size,
+                  channels: 4,
+                  background: {r:0,g:0,b:0,alpha:0}
+                }
+              }).composite([{input:artwork,left,top}]).png().toFile(path.join(dir,'ic_launcher_foreground.png'));
             }
             fs.mkdirSync('dist/store',{recursive:true});
-            await sharp(src).resize(512,512,{fit:'cover'}).png().toFile('dist/store/ORBIT-BREAK-Google-Play-Icon-512.png');
+            await sharp(src).resize(512,512,{fit:'contain'}).png().toFile('dist/store/ORBIT-BREAK-Google-Play-Icon-512.png');
           }
           main().catch(err=>{console.error(err);process.exit(1)});
           NODE
@@ -204,7 +219,7 @@ jobs:
           cat > android/app/src/main/res/values/orbit_brand_colors.xml <<'XML'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <color name="orbit_icon_background">#050711</color>
+              <color name="orbit_icon_background">#000000</color>
               <color name="orbit_splash_background">#03111A</color>
           </resources>
           XML
