@@ -15,15 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Rebuild launcher icon
+      - name: Diagnose staged launcher parts
         shell: bash
         run: |
-          cat .launcher-upload/part*.b64 | base64 --decode > assets/orbit-break-icon.webp
-          echo "e0e1536e77c72463d451ad3e112d1b027000b6c16f4a4b500562a4b4c997f24c  assets/orbit-break-icon.webp" | sha256sum -c -
-          rm -rf .launcher-upload
-          rm -f .github/workflows/apply-launcher-icon-temp.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Replace launcher icon with supplied artwork"
-          git push
+          for f in .launcher-upload/part*.b64; do
+            printf '%s ' "$f"
+            base64 --decode "$f" | sha256sum
+          done
+          cat .launcher-upload/part*.b64 | base64 --decode > /tmp/orbit-break-icon.webp
+          sha256sum /tmp/orbit-break-icon.webp
+          stat -c '%s bytes' /tmp/orbit-break-icon.webp
