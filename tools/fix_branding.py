@@ -31,10 +31,21 @@ def patch(path: str) -> None:
     # exactly the same Settings > Legal documentation UI without separate build logic.
     apply_legal_docs(p)
     final = p.read_text(encoding='utf-8')
+
+    # Avoid a MutationObserver feedback loop caused by rewriting localized labels from
+    # inside the observer callback. Text is still refreshed every time Legal is opened.
+    final = final.replace(
+        "var mo=new MutationObserver(function(){ensureRow();syncText()});mo.observe(document.body,{childList:true,subtree:true});",
+        "var mo=new MutationObserver(function(){ensureRow()});mo.observe(document.body,{childList:true,subtree:true});"
+    )
+    p.write_text(final, encoding='utf-8')
+
     required = ['ORBIT LEGAL DOCUMENTATION START', 'orbitLegalModal', 'orbitLegalDeleteData']
     missing = [item for item in required if item not in final]
     if missing:
         raise SystemExit(f'{path}: legal documentation injection failed: {missing}')
+    if 'MutationObserver(function(){ensureRow();syncText()})' in final:
+        raise SystemExit(f'{path}: unstable legal MutationObserver remained after patch')
 
     print(f'Branding + legal docs fixed: {path}' + (' (updated)' if final != before else ''))
 
