@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 
 from add_legal_docs import apply as apply_legal_docs
+from fix_settings_actions import apply as apply_settings_actions
 
 OLD_WEB = 'assets/bobbey-game-studio-splash.jpg'
 NEW_WEB = 'assets/bobbey-game-studio-splash.webp'
@@ -39,6 +40,10 @@ def patch(path: str) -> None:
     # Legal documentation is applied here so Pages, Android and Windows all receive
     # exactly the same Settings > Legal documentation UI without separate build logic.
     apply_legal_docs(p)
+
+    # Replace the old full-width Legal row with the compact shield/check button and
+    # a neighboring email button linked to Bobbey Game Studio contact email.
+    apply_settings_actions(p)
     final = p.read_text(encoding='utf-8')
 
     # Avoid a MutationObserver feedback loop caused by rewriting localized labels from
@@ -49,14 +54,23 @@ def patch(path: str) -> None:
     )
     p.write_text(final, encoding='utf-8')
 
-    required = ['ORBIT LEGAL DOCUMENTATION START', 'orbitLegalModal', 'orbitLegalDeleteData']
+    required = [
+        'ORBIT LEGAL DOCUMENTATION START',
+        'orbitLegalModal',
+        'orbitLegalDeleteData',
+        'orbitLegalIconBtn',
+        'orbitContactEmail',
+        'mailto:partnerships@bobbey.net',
+    ]
     missing = [item for item in required if item not in final]
     if missing:
-        raise SystemExit(f'{path}: legal documentation injection failed: {missing}')
+        raise SystemExit(f'{path}: legal/contact settings injection failed: {missing}')
     if 'MutationObserver(function(){ensureRow();syncText()})' in final:
         raise SystemExit(f'{path}: unstable legal MutationObserver remained after patch')
+    if '<div class=\\"orbit-setting-icon\\">§</div><div class=\\"orbit-setting-label\\" id=\\"orbitLegalLabel\\">Legal documentation</div>' in final:
+        raise SystemExit(f'{path}: old full-width Legal settings row remained after patch')
 
-    print(f'Branding + legal docs fixed: {path}' + (' (updated)' if final != before else ''))
+    print(f'Branding + compact legal/contact actions fixed: {path}' + (' (updated)' if final != before else ''))
 
 
 if __name__ == '__main__':
