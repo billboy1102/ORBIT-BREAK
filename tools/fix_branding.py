@@ -11,6 +11,12 @@ OLD_DESKTOP = '../assets/bobbey-game-studio-splash.jpg'
 NEW_DESKTOP = '../assets/bobbey-game-studio-splash.webp'
 MAIL_BRIDGE = "const ORBIT_CONTACT_MAIL='mailto:partnerships@bobbey.net?subject=ORBIT%20BREAK%20Support';window.addEventListener('message',function(e){if(e&&e.data&&e.data.type==='orbit-open-mail'&&e.data.url===ORBIT_CONTACT_MAIL){window.location.href=ORBIT_CONTACT_MAIL}});"
 MAIL_ANCHOR = "const frame=document.getElementById('gameFrame');"
+BOOT_START = "const bootStarted=performance.now();"
+BOOT_SAFE = "const bootStarted=performance.now();\nsetTimeout(function(){try{finishBoot()}catch(e){}},4500);"
+PATCH_OLD = "html=html.replace(marker,addon+'\\n'+marker);"
+PATCH_SAFE = "html=html.replace(marker,'try{\\n'+addon+'\\n}catch(e){console.error(\\\"ORBIT ADDON FAILED\\\",e)}\\n'+marker);"
+PATCH_FAIL_OLD = "try{patchGame()}catch(err){console.error(err);boot.textContent='RHYTHM LOAD FAILED';frame.classList.add('ready')}"
+PATCH_FAIL_SAFE = "try{patchGame()}catch(err){console.error(err);finishBoot()}"
 
 
 def patch(path: str) -> None:
@@ -28,6 +34,23 @@ def patch(path: str) -> None:
 
     if NEW_WEB not in text and NEW_DESKTOP not in text:
         raise SystemExit(f'{path}: Bobbey splash reference was not found')
+
+    # Never let a browser-specific runtime failure trap the player behind the boot screen.
+    # If the injected addon throws, the original game-base script continues to resize/start.
+    if PATCH_SAFE not in text:
+        if PATCH_OLD not in text:
+            raise SystemExit(f'{path}: runtime addon patch anchor was not found')
+        text = text.replace(PATCH_OLD, PATCH_SAFE, 1)
+
+    # If patchGame itself cannot run, reveal the already-loaded base game instead of
+    # replacing the entire screen with a permanent load-error message.
+    text = text.replace(PATCH_FAIL_OLD, PATCH_FAIL_SAFE)
+
+    # Hard boot timeout: protects Safari/WebView from a missed iframe load callback.
+    if BOOT_SAFE not in text:
+        if BOOT_START not in text:
+            raise SystemExit(f'{path}: boot timer anchor was not found')
+        text = text.replace(BOOT_START, BOOT_SAFE, 1)
 
     # The Settings UI runs inside the game iframe. Bridge its contact request to the
     # top-level wrapper so Safari/Capacitor can hand mailto: to the installed mail app.
@@ -75,16 +98,18 @@ def patch(path: str) -> None:
         'ORBIT_CONTACT_MAIL',
         "type==='orbit-open-mail'",
         'mailto:partnerships@bobbey.net',
+        'ORBIT ADDON FAILED',
+        'setTimeout(function(){try{finishBoot()}catch(e){}},4500);',
     ]
     missing = [item for item in required if item not in final]
     if missing:
-        raise SystemExit(f'{path}: legal/contact settings injection failed: {missing}')
+        raise SystemExit(f'{path}: branding/legal/runtime injection failed: {missing}')
     if 'MutationObserver(function(){ensureRow();syncText()})' in final:
         raise SystemExit(f'{path}: unstable legal MutationObserver remained after patch')
     if '<div class=\\"orbit-setting-icon\\">§</div><div class=\\"orbit-setting-label\\" id=\\"orbitLegalLabel\\">Legal documentation</div>' in final:
         raise SystemExit(f'{path}: old full-width Legal settings row remained after patch')
 
-    print(f'Branding + compact legal/contact actions fixed: {path}' + (' (updated)' if final != before else ''))
+    print(f'Branding + compact legal/contact + fail-safe runtime fixed: {path}' + (' (updated)' if final != before else ''))
 
 
 if __name__ == '__main__':
