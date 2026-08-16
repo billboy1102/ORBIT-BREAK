@@ -2,6 +2,8 @@
 from pathlib import Path
 import sys
 
+from add_legal_docs import apply as apply_legal_docs
+
 OLD_WEB = 'assets/bobbey-game-studio-splash.jpg'
 NEW_WEB = 'assets/bobbey-game-studio-splash.webp'
 OLD_DESKTOP = '../assets/bobbey-game-studio-splash.jpg'
@@ -24,7 +26,17 @@ def patch(path: str) -> None:
     if NEW_WEB not in text and NEW_DESKTOP not in text:
         raise SystemExit(f'{path}: Bobbey splash reference was not found')
     p.write_text(text, encoding='utf-8')
-    print(f'Branding fixed: {path}' + (' (updated)' if text != before else ''))
+
+    # Legal documentation is applied here so Pages, Android and Windows all receive
+    # exactly the same Settings > Legal documentation UI without separate build logic.
+    apply_legal_docs(p)
+    final = p.read_text(encoding='utf-8')
+    required = ['ORBIT LEGAL DOCUMENTATION START', 'orbitLegalModal', 'orbitLegalDeleteData']
+    missing = [item for item in required if item not in final]
+    if missing:
+        raise SystemExit(f'{path}: legal documentation injection failed: {missing}')
+
+    print(f'Branding + legal docs fixed: {path}' + (' (updated)' if final != before else ''))
 
 
 if __name__ == '__main__':
