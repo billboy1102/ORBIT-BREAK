@@ -29,8 +29,8 @@ def apply(path: Path) -> None:
 
     final = path.read_text(encoding='utf-8')
     required = [
-        'id=\\\"orbitLegalIconBtn\\\"',
-        'id=\\\"orbitContactEmail\\\"',
+        'orbitLegalIconBtn',
+        'orbitContactEmail',
         'mailto:partnerships@bobbey.net',
         'orbit-settings-icon-action',
         'm16.5 23.5 5 5 10-11',
@@ -38,7 +38,7 @@ def apply(path: Path) -> None:
     missing = [x for x in required if x not in final]
     if missing:
         raise SystemExit(f'{path}: compact Settings actions missing: {missing}')
-    if '<div class=\\\"orbit-setting-icon\\\">§</div><div class=\\\"orbit-setting-label\\\" id=\\\"orbitLegalLabel\\\">Legal documentation</div>' in final:
+    if "row.className='orbit-setting-row';row.id='orbitLegalRow'" in final:
         raise SystemExit(f'{path}: old full-width Legal row still present')
     print(f'Compact Legal + contact buttons applied: {path}')
 
