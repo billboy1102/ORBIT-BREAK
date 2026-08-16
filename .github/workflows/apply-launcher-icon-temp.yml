@@ -18,6 +18,7 @@ jobs:
       - name: Verify staged launcher icon
         shell: bash
         run: |
+          echo 'verification pass 2'
           cat .launcher-upload/part07_*.b64 | base64 --decode > /tmp/part07.bin
           echo "88300729642a8dae9ff74026d9fc4aa9db372c76e58d03e8c0ea13f9f74b25d2  /tmp/part07.bin" | sha256sum -c -
           cat .launcher-upload/part*.b64 | base64 --decode > /tmp/orbit-break-icon.webp
