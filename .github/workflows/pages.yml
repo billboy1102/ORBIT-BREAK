@@ -30,6 +30,7 @@ jobs:
           python3 tools/fix_simple_ui.py index.html
           python3 tools/fix_rankings_position.py index.html
           python3 tools/fix_branding.py index.html
+          python3 tools/fix_first_tap_clock.py index.html
 
       - name: Validate Bobbey splash and web wrapper
         run: |
@@ -37,6 +38,7 @@ jobs:
           test -s assets/orbit-break-icon.webp
           grep -Fq 'assets/bobbey-game-studio-splash.webp' index.html
           ! grep -Fq 'assets/bobbey-game-studio-splash.jpg' index.html
+          grep -Fq "audioCtx.state==='running'&&rhythmSegmentStart>0" index.html
           python3 - <<'PY'
           from pathlib import Path
           html=Path('index.html').read_text()
