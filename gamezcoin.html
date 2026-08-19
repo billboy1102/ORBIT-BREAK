@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#050711">
+<title>ORBIT BREAK · Gamezcoin</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050711}
+#orbit{position:fixed;inset:0;width:100%;height:100%;border:0;background:#050711}
+#bridgeBoot{position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:#050711;color:#dffcff;font-family:system-ui;text-align:center;transition:opacity .2s ease}
+#bridgeBoot.hide{opacity:0;pointer-events:none}
+#bridgeBoot .ring{width:42px;height:42px;border-radius:50%;border:3px solid #62f6ff33;border-top-color:#62f6ff;animation:spin .8s linear infinite;margin:auto}
+#bridgeBoot p{font-size:12px;letter-spacing:1.4px;margin:12px 0 0;color:#91afc8}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<iframe id="orbit" src="./index.html" title="ORBIT BREAK" allow="autoplay"></iframe>
+<div id="bridgeBoot"><div><div class="ring"></div><p>ORBIT BREAK</p></div></div>
+<script>
+(()=>{
+'use strict';
+const params=new URLSearchParams(location.search);
+const token=String(params.get('token')||'').replace(/[^a-zA-Z0-9_-]/g,'');
+const prefix='gamezcoin-orbit';
+const outer=document.getElementById('orbit');
+const boot=document.getElementById('bridgeBoot');
+let runId=0,lastMode='unknown',innerFrame=null,innerDoc=null,observer=null,scoreObserver=null;
+const post=(payload)=>{if(!token)return;parent.postMessage({prefix,token,...payload},'*')};
+
+function installScoreOverlay(doc){
+  if(!doc||doc.getElementById('gamezcoinScore'))return;
+  const original=doc.getElementById('score');
+  if(!original)return;
+  const style=doc.createElement('style');
+  style.textContent=`
+    #score{visibility:hidden!important}
+    #gamezcoinScore{position:fixed;left:50%;top:max(92px,15vh);transform:translateX(-50%);z-index:9;font-family:Arial,Helvetica,sans-serif;font-size:clamp(60px,16vw,96px);font-weight:300;line-height:1;letter-spacing:.02em;color:#fff;text-align:center;text-shadow:0 0 18px rgba(255,255,255,.12);pointer-events:none}
+    body.menu-start #gamezcoinScore,body.menu-over #gamezcoinScore{display:none!important}
+  `;
+  doc.head.append(style);
+  const scaled=doc.createElement('div');
+  scaled.id='gamezcoinScore';
+  scaled.textContent='0';
+  doc.body.append(scaled);
+  const sync=()=>{const hits=Number(original.textContent||0);scaled.textContent=String(Number.isFinite(hits)?hits*10:0)};
+  scoreObserver?.disconnect();
+  scoreObserver=new MutationObserver(sync);
+  scoreObserver.observe(original,{childList:true,characterData:true,subtree:true});
+  sync();
+}
+
+function currentMode(doc){
+  const start=doc?.getElementById('start');
+  const over=doc?.getElementById('gameover');
+  const score=doc?.getElementById('score');
+  if(!start||!over||!score)return 'unknown';
+  if(!over.classList.contains('hidden'))return 'over';
+  if(start.classList.contains('hidden')&&score.style.display!=='none')return 'play';
+  return 'menu';
+}
+
+function syncState(){
+  const doc=innerDoc;
+  if(!doc)return;
+  installScoreOverlay(doc);
+  const mode=currentMode(doc);
+  if(mode===lastMode)return;
+  const previous=lastMode;
+  lastMode=mode;
+  if(mode==='play'){
+    runId+=1;
+    post({type:'session-request',run_id:runId});
+  }
+  if(mode==='over'&&previous!=='over'&&runId>0){
+    const finalEl=doc.getElementById('finalScore');
+    const highEl=doc.getElementById('highScore');
+    const rawHits=Number(finalEl?.textContent||0);
+    const rawHigh=Number(highEl?.textContent||0);
+    if(Number.isSafeInteger(rawHits)&&rawHits>=0){
+      post({type:'finish',run_id:runId,hits:rawHits,score:rawHits*10});
+      if(finalEl)finalEl.textContent=String(rawHits*10);
+      if(highEl&&Number.isFinite(rawHigh))highEl.textContent=String(rawHigh*10);
+    }
+  }
+}
+
+function attachInner(){
+  try{
+    const doc=innerFrame?.contentDocument;
+    if(!doc||!doc.documentElement)return;
+    innerDoc=doc;
+    lastMode='unknown';
+    observer?.disconnect();
+    observer=new MutationObserver(syncState);
+    observer.observe(doc.documentElement,{attributes:true,childList:true,subtree:true,characterData:true,attributeFilter:['class','style']});
+    syncState();
+    boot.classList.add('hide');
+  }catch(err){console.error('Gamezcoin ORBIT bridge',err)}
+}
+
+function attachOuter(){
+  try{
+    const doc=outer.contentDocument;
+    innerFrame=doc?.getElementById('gameFrame')||null;
+    if(!innerFrame){setTimeout(attachOuter,120);return}
+    innerFrame.addEventListener('load',()=>setTimeout(attachInner,40));
+    if(innerFrame.contentDocument?.documentElement)attachInner();
+  }catch(err){console.error('Gamezcoin ORBIT outer bridge',err)}
+}
+
+outer.addEventListener('load',()=>setTimeout(attachOuter,60));
+setTimeout(()=>boot.classList.add('hide'),5000);
+})();
+</script>
+</body>
+</html>
