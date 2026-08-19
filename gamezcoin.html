@@ -61,6 +61,79 @@ function currentMode(doc){
   return 'menu';
 }
 
+/*
+ * iOS Safari can create ORBIT's AudioContext on the first TAP TO START while
+ * keeping it suspended for the rest of that pointer event. ORBIT then switches
+ * its movement clock to audioCtx.currentTime, which is still frozen at 0, so the
+ * first run appears stuck. We consume only the first menu tap, resume a context
+ * from that real user gesture, then let ORBIT reuse the already-running context
+ * when we replay the same tap. Subsequent taps are untouched.
+ */
+function installFirstTapAudioUnlock(doc){
+  const win=doc?.defaultView;
+  if(!win||win.__gamezcoinFirstTapAudioUnlock)return;
+  win.__gamezcoinFirstTapAudioUnlock=true;
+
+  const onFirstMenuTap=async(event)=>{
+    if(currentMode(doc)!=='menu')return;
+    const NativeAudioContext=win.AudioContext||win.webkitAudioContext;
+    if(!NativeAudioContext){
+      doc.removeEventListener('pointerdown',onFirstMenuTap,true);
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    doc.removeEventListener('pointerdown',onFirstMenuTap,true);
+
+    let warmed=null;
+    try{
+      warmed=new NativeAudioContext();
+      if(warmed.state!=='running')await warmed.resume();
+    }catch(err){
+      console.warn('Gamezcoin ORBIT audio warmup failed',err);
+    }
+
+    const oldAudioContext=win.AudioContext;
+    const oldWebkitAudioContext=win.webkitAudioContext;
+    let reused=false;
+
+    if(warmed&&warmed.state==='running'){
+      function RunningAudioContext(){reused=true;return warmed}
+      RunningAudioContext.prototype=NativeAudioContext.prototype;
+      try{Object.setPrototypeOf(RunningAudioContext,NativeAudioContext)}catch(_){ }
+      try{win.AudioContext=RunningAudioContext}catch(_){ }
+      try{win.webkitAudioContext=RunningAudioContext}catch(_){ }
+    }
+
+    const replay=()=>{
+      try{
+        const replayEvent=new win.PointerEvent('pointerdown',{
+          bubbles:true,
+          cancelable:true,
+          pointerType:event.pointerType||'touch',
+          clientX:event.clientX||0,
+          clientY:event.clientY||0,
+          button:0,
+          buttons:1
+        });
+        win.dispatchEvent(replayEvent);
+      }finally{
+        queueMicrotask(()=>{
+          try{if(oldAudioContext)win.AudioContext=oldAudioContext}catch(_){ }
+          try{if(oldWebkitAudioContext)win.webkitAudioContext=oldWebkitAudioContext}catch(_){ }
+          if(warmed&&!reused){try{warmed.close()}catch(_){ }}
+        });
+      }
+    };
+
+    replay();
+  };
+
+  doc.addEventListener('pointerdown',onFirstMenuTap,true);
+}
+
 function syncState(){
   const doc=innerDoc;
   if(!doc)return;
@@ -95,6 +168,7 @@ function attachInner(){
     observer?.disconnect();
     observer=new MutationObserver(syncState);
     observer.observe(doc.documentElement,{attributes:true,childList:true,subtree:true,characterData:true,attributeFilter:['class','style']});
+    installFirstTapAudioUnlock(doc);
     syncState();
     boot.classList.add('hide');
   }catch(err){console.error('Gamezcoin ORBIT bridge',err)}
