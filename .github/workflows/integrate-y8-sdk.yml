@@ -1,0 +1,136 @@
+name: Integrate Y8 SDK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/integrate-y8-sdk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch Orbit Break for Y8
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          sdk_block = r'''<script
+            src="https://cdn.y8.com/minimal-sdk/2-0/y8.min.js"
+            async
+          ></script>
+          <script>
+          let y8Sdk;
+          window.orbitY8AdBusy = false;
+
+          window.addEventListener("y8sdk.ready", function () {
+            y8Sdk = y8.sdk();
+
+            const appConfig = {
+              appId: '6a8af910b3a217f531663764',
+              autoLogin: true
+            };
+
+            const adConfig = {
+              gameId: '281161',
+              preloadAdBreaks: 'on',
+              sound: 'on',
+              onReady: () => {}
+            };
+
+            y8Sdk.init(appConfig, adConfig);
+            y8Sdk.onAuth((user, error) => {});
+          }, { once: true });
+
+          if (window.y8 && window.y8.emitReadyEvent) {
+            window.y8.emitReadyEvent();
+          }
+
+          // Called by the gameplay iframe after Game Over when the player retries.
+          window.orbitY8ShowNextAd = function () {
+            if (window.orbitY8AdBusy) {
+              return Promise.resolve({ breakStatus: 'busy' });
+            }
+            if (!y8Sdk) {
+              console.log('Y8 SDK not yet initialized');
+              return Promise.resolve({ breakStatus: 'sdk-not-ready' });
+            }
+
+            window.orbitY8AdBusy = true;
+            return new Promise((resolve) => {
+              let finished = false;
+              const finish = (info) => {
+                if (finished) return;
+                finished = true;
+                window.orbitY8AdBusy = false;
+                resolve(info || {});
+              };
+
+              try {
+                const request = y8Sdk.showAd({
+                  type: 'next',
+                  name: 'game-over-retry',
+                  beforeAd: () => {},
+                  afterAd: () => finish({ breakStatus: 'after-ad' }),
+                  adBreakDone: (info) => {
+                    console.log('Ad break done:', info && info.breakStatus);
+                    finish(info);
+                  }
+                });
+                if (request && typeof request.catch === 'function') {
+                  request.catch((e) => {
+                    console.error(e);
+                    finish({ breakStatus: 'error' });
+                  });
+                }
+              } catch (e) {
+                console.error(e);
+                finish({ breakStatus: 'error' });
+              }
+            });
+          };
+          </script>'''
+
+          if 'https://cdn.y8.com/minimal-sdk/2-0/y8.min.js' not in text:
+              marker = '<title>ORBIT BREAK</title>'
+              if marker not in text:
+                  raise SystemExit('Could not find title marker for Y8 SDK insertion')
+              text = text.replace(marker, marker + '\n' + sdk_block, 1)
+
+          old_tap = "tap=function(e){if(e)e.preventDefault();if(state==='over'){rhythmStop();state='menu';document.body.classList.remove('menu-over');document.body.classList.add('menu-start');if(el.score)el.score.style.display='none';el.over.classList.add('hidden');el.start.classList.remove('hidden');return}if(state==='menu'){reset();return}if(state!=='play')return;let tol=clamp(speed*.075,.26,.42),d=Math.abs(progress-goal);d<=tol?success(d):die(progress<goal?'TOO EARLY':'MISS BEAT')};"
+
+          new_tap = """tap=function(e){if(e)e.preventDefault();if(state==='over'){rhythmStop();state='ad';const startNextRound=function(){if(state!=='ad')return;reset()};try{const host=(window.parent&&window.parent!==window)?window.parent:window;if(host&&typeof host.orbitY8ShowNextAd==='function'){Promise.resolve(host.orbitY8ShowNextAd()).then(startNextRound,startNextRound)}else startNextRound()}catch(err){console.error(err);startNextRound()}return}if(state==='menu'){reset();return}if(state!=='play')return;let tol=clamp(speed*.075,.26,.42),d=Math.abs(progress-goal);d<=tol?success(d):die(progress<goal?'TOO EARLY':'MISS BEAT')};"""
+
+          if old_tap in text:
+              text = text.replace(old_tap, new_tap, 1)
+          elif "state==='ad'" not in text:
+              raise SystemExit('Could not find Orbit Break retry handler to patch')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit Y8 integration
+        shell: bash
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No index.html changes needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Integrate Y8 SDK and retry interstitial"
+          git push origin main
