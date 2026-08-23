@@ -1,0 +1,48 @@
+name: Build ORBIT BREAK Y8 Package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/build_y8_package.py'
+      - '.github/workflows/build-y8-package.yml'
+      - 'index.html'
+      - 'game-base.html'
+      - 'assets/**'
+      - 'tools/fix_simple_ui.py'
+      - 'tools/fix_rankings_position.py'
+      - 'tools/fix_branding.py'
+      - 'tools/fix_first_tap_clock.py'
+      - 'tools/apply_native_music_pack.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Y8 ZIP
+        run: python3 tools/build_y8_package.py
+
+      - name: Verify ZIP root and UI markers
+        run: |
+          unzip -l dist/ORBIT-BREAK-Y8.zip
+          unzip -p dist/ORBIT-BREAK-Y8.zip index.html | grep -Fq "appId: '6a8af910b3a217f531663764'"
+          unzip -p dist/ORBIT-BREAK-Y8.zip index.html | grep -Fq "gameId: '281161'"
+          unzip -p dist/ORBIT-BREAK-Y8.zip index.html | grep -Fq 'orbitBottomNav'
+          unzip -p dist/ORBIT-BREAK-Y8.zip index.html | grep -Fq 'orbitSkinsModal'
+          unzip -p dist/ORBIT-BREAK-Y8.zip index.html | grep -Fq 'orbitRankingsModal'
+          unzip -p dist/ORBIT-BREAK-Y8.zip index.html | grep -Fq 'body:before'
+
+      - name: Upload Y8 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ORBIT-BREAK-Y8
+          path: dist/ORBIT-BREAK-Y8.zip
+          if-no-files-found: error
+          retention-days: 30
