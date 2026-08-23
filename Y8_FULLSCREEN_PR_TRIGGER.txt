@@ -1,0 +1,1 @@
+Run the Y8 packaging workflow for the mandatory desktop fullscreen build.
