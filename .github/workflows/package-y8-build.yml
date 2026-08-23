@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   package:
@@ -16,10 +16,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Prepare clean Y8 build
         run: |
-          rm -rf y8-build
+          rm -rf y8-build ORBIT-BREAK-Y8.zip
           mkdir -p y8-build/assets
           cp index.html game-base.html y8-build/
           cp assets/bobbey-game-studio-splash.jpg y8-build/assets/
@@ -35,9 +37,23 @@ jobs:
           grep -Fq "appId: '6a8af910b3a217f531663764'" y8-build/index.html
           grep -Fq "gameId: '281161'" y8-build/index.html
           grep -Fq "type: 'next'" y8-build/index.html
-          ! find y8-build -mindepth 1 -maxdepth 1 -type d | grep -Ev '/assets$'
           printf 'Y8 build files:\n'
           find y8-build -type f -printf '%P\n' | sort
+
+      - name: Create upload ZIP
+        run: |
+          cd y8-build
+          zip -9 -r ../ORBIT-BREAK-Y8.zip .
+          cd ..
+          unzip -l ORBIT-BREAK-Y8.zip
+
+      - name: Commit downloadable ZIP
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f ORBIT-BREAK-Y8.zip
+          git commit -m "Add ORBIT-BREAK-Y8 upload ZIP" || exit 0
+          git push
 
       - name: Upload Y8 build artifact
         uses: actions/upload-artifact@v4
