@@ -1,0 +1,48 @@
+name: Package Y8 HTML5 Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/package-y8-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare clean Y8 build
+        run: |
+          rm -rf y8-build
+          mkdir -p y8-build/assets
+          cp index.html game-base.html y8-build/
+          cp assets/bobbey-game-studio-splash.jpg y8-build/assets/
+          cp assets/bobbey-game-studio-splash.webp y8-build/assets/
+          cp assets/orbit-break-icon.webp y8-build/assets/
+
+      - name: Validate Y8 build
+        run: |
+          test -s y8-build/index.html
+          test -s y8-build/game-base.html
+          test -s y8-build/assets/bobbey-game-studio-splash.jpg
+          grep -Fq 'https://cdn.y8.com/minimal-sdk/2-0/y8.min.js' y8-build/index.html
+          grep -Fq "appId: '6a8af910b3a217f531663764'" y8-build/index.html
+          grep -Fq "gameId: '281161'" y8-build/index.html
+          grep -Fq "type: 'next'" y8-build/index.html
+          ! find y8-build -mindepth 1 -maxdepth 1 -type d | grep -Ev '/assets$'
+          printf 'Y8 build files:\n'
+          find y8-build -type f -printf '%P\n' | sort
+
+      - name: Upload Y8 build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ORBIT-BREAK-Y8
+          path: y8-build/
+          if-no-files-found: error
+          retention-days: 7
