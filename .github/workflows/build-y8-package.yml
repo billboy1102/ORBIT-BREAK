@@ -14,6 +14,7 @@ on:
       - 'tools/fix_branding.py'
       - 'tools/fix_first_tap_clock.py'
       - 'tools/apply_native_music_pack.py'
+  pull_request:
   workflow_dispatch:
 
 permissions:
