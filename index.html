@@ -5,6 +5,81 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#050711">
 <title>ORBIT BREAK</title>
+<script
+  src="https://cdn.y8.com/minimal-sdk/2-0/y8.min.js"
+  async
+></script>
+<script>
+let y8Sdk;
+window.orbitY8AdBusy = false;
+
+window.addEventListener("y8sdk.ready", function () {
+  y8Sdk = y8.sdk();
+
+  const appConfig = {
+    appId: '6a8af910b3a217f531663764',
+    autoLogin: true
+  };
+
+  const adConfig = {
+    gameId: '281161',
+    preloadAdBreaks: 'on',
+    sound: 'on',
+    onReady: () => {}
+  };
+
+  y8Sdk.init(appConfig, adConfig);
+  y8Sdk.onAuth((user, error) => {});
+}, { once: true });
+
+if (window.y8 && window.y8.emitReadyEvent) {
+  window.y8.emitReadyEvent();
+}
+
+// Called by the gameplay iframe after Game Over when the player retries.
+window.orbitY8ShowNextAd = function () {
+  if (window.orbitY8AdBusy) {
+    return Promise.resolve({ breakStatus: 'busy' });
+  }
+  if (!y8Sdk) {
+    console.log('Y8 SDK not yet initialized');
+    return Promise.resolve({ breakStatus: 'sdk-not-ready' });
+  }
+
+  window.orbitY8AdBusy = true;
+  return new Promise((resolve) => {
+    let finished = false;
+    const finish = (info) => {
+      if (finished) return;
+      finished = true;
+      window.orbitY8AdBusy = false;
+      resolve(info || {});
+    };
+
+    try {
+      const request = y8Sdk.showAd({
+        type: 'next',
+        name: 'game-over-retry',
+        beforeAd: () => {},
+        afterAd: () => finish({ breakStatus: 'after-ad' }),
+        adBreakDone: (info) => {
+          console.log('Ad break done:', info && info.breakStatus);
+          finish(info);
+        }
+      });
+      if (request && typeof request.catch === 'function') {
+        request.catch((e) => {
+          console.error(e);
+          finish({ breakStatus: 'error' });
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      finish({ breakStatus: 'error' });
+    }
+  });
+};
+</script>
 <style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050711}
 #gameFrame{position:fixed;inset:0;width:100%;height:100%;border:0;background:#050711;opacity:0;pointer-events:none;transition:opacity .12s ease}
@@ -147,7 +222,7 @@ bossFx=function(t){let b=clamp((combo-5)/9,0,1);if(!b)return;let beat=typeof rhy
 /* Change theme every 3 hits instead of every 5. */
 drawBackground=function(){let n=Math.floor(hits/3)%THEMES.length;if(n!==themeNow){themePrev=themeNow;themeNow=n;themeAt=now;updateHUD()}let m=clamp((now-themeAt)/850,0,1),e=m*m*(3-2*m);ctx.fillStyle='#010308';ctx.fillRect(0,0,W,H);ctx.save();themeDraw(themePrev,THEMES[themePrev]);ctx.restore();if(themeNow!==themePrev){ctx.save();ctx.globalAlpha=e;themeDraw(themeNow,THEMES[themeNow]);ctx.restore()}deepTunnel(THEMES[themeNow]);bossFx(THEMES[themeNow]);let flow=clamp((speed-1.8)/3.7,0,1);for(let d of dust){let sh=now*.022*d.s*(.75+flow*1.25),x=((d.x-camera.x*.44-sh*Math.cos(d.a))%(W+180)+(W+180))%(W+180)-90,y=((d.y-camera.y*.44-sh*Math.sin(d.a))%(H+180)+(H+180))%(H+180)-90;ctx.strokeStyle=rgba(THEMES[themeNow].a,.05+flow*.17);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+d.l*(1+flow*.45)*Math.cos(d.a),y+d.l*(1+flow*.45)*Math.sin(d.a));ctx.stroke()}};
 const fastBaseTap=tap;removeEventListener('pointerdown',fastBaseTap);
-tap=function(e){if(e)e.preventDefault();if(state==='over'){rhythmStop();state='menu';document.body.classList.remove('menu-over');document.body.classList.add('menu-start');if(el.score)el.score.style.display='none';el.over.classList.add('hidden');el.start.classList.remove('hidden');return}if(state==='menu'){reset();return}if(state!=='play')return;let tol=clamp(speed*.075,.26,.42),d=Math.abs(progress-goal);d<=tol?success(d):die(progress<goal?'TOO EARLY':'MISS BEAT')};
+tap=function(e){if(e)e.preventDefault();if(state==='over'){rhythmStop();state='ad';const startNextRound=function(){if(state!=='ad')return;reset()};try{const host=(window.parent&&window.parent!==window)?window.parent:window;if(host&&typeof host.orbitY8ShowNextAd==='function'){Promise.resolve(host.orbitY8ShowNextAd()).then(startNextRound,startNextRound)}else startNextRound()}catch(err){console.error(err);startNextRound()}return}if(state==='menu'){reset();return}if(state!=='play')return;let tol=clamp(speed*.075,.26,.42),d=Math.abs(progress-goal);d<=tol?success(d):die(progress<goal?'TOO EARLY':'MISS BEAT')};
 addEventListener('pointerdown',tap,{passive:false});
 
 
