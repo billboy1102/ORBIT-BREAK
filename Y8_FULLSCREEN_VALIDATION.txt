@@ -1,0 +1,1 @@
+Temporary marker for validating the mandatory desktop fullscreen Y8 package.
