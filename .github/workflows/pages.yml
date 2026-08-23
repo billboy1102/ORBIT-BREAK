@@ -41,12 +41,14 @@ jobs:
           grep -Fq "audioCtx.state==='running'&&rhythmSegmentStart>0" index.html
           python3 - <<'PY'
           from pathlib import Path
+          import re
           html=Path('index.html').read_text()
           assert '#orbitRankingsModal{inset:0 0 calc(84px + env(safe-area-inset-bottom)) 0!important;' in html
           assert 'bottom:calc(84px + env(safe-area-inset-bottom))!important;inset:auto!important;' not in html
-          start=html.find('<script>')+len('<script>')
-          end=html.rfind('</script>')
-          Path('/tmp/orbit-wrapper.js').write_text(html[start:end])
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>', html, flags=re.S|re.I)
+          wrapper=next((s for s in scripts if "const frame=document.getElementById('gameFrame')" in s), None)
+          assert wrapper is not None, 'Main Orbit wrapper script not found'
+          Path('/tmp/orbit-wrapper.js').write_text(wrapper)
           PY
           node --check /tmp/orbit-wrapper.js
 
