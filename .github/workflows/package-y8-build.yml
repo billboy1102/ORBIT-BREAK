@@ -25,14 +25,13 @@ jobs:
           mkdir -p y8-build/assets
           cp index.html game-base.html y8-build/
           cp assets/bobbey-game-studio-splash.jpg y8-build/assets/
-          cp assets/bobbey-game-studio-splash.webp y8-build/assets/
-          cp assets/orbit-break-icon.webp y8-build/assets/
 
       - name: Validate Y8 build
         run: |
           test -s y8-build/index.html
           test -s y8-build/game-base.html
           test -s y8-build/assets/bobbey-game-studio-splash.jpg
+          grep -Fq 'assets/bobbey-game-studio-splash.jpg' y8-build/index.html
           grep -Fq 'https://cdn.y8.com/minimal-sdk/2-0/y8.min.js' y8-build/index.html
           grep -Fq "appId: '6a8af910b3a217f531663764'" y8-build/index.html
           grep -Fq "gameId: '281161'" y8-build/index.html
@@ -52,7 +51,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f ORBIT-BREAK-Y8.zip
-          git commit -m "Add ORBIT-BREAK-Y8 upload ZIP" || exit 0
+          git commit -m "Update ORBIT-BREAK-Y8 upload ZIP" || exit 0
           git push
 
       - name: Upload Y8 build artifact
