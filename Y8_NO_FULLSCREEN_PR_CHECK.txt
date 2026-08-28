@@ -1,1 +1,0 @@
-Trigger PR validation for the Y8 package without mandatory fullscreen.
