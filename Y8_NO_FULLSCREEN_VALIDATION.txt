@@ -1,0 +1,1 @@
+Temporary marker to validate the Y8 package without mandatory fullscreen.
